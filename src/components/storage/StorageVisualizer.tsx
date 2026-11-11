@@ -1,0 +1,231 @@
+import React, { useState, useEffect } from 'react';
+import { Asset, LabStorageLayout, LabType } from '../../types';
+import { api } from '../../services/api';
+import {
+  Layers,
+  Archive,
+  Server,
+  FolderOpen,
+  Tag,
+  Building2,
+  ChevronRight,
+  Boxes
+} from 'lucide-react';
+
+interface StorageVisualizerProps {
+  currentLab: LabType;
+  assets: Asset[];
+  onSelectAssetForTag?: (asset: Asset) => void;
+}
+
+export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
+  currentLab,
+  assets,
+  onSelectAssetForTag,
+}) => {
+  const [layouts, setLayouts] = useState<LabStorageLayout[]>([]);
+  const [selectedCabinetId, setSelectedCabinetId] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadLayouts() {
+      try {
+        setLoading(true);
+        const data = await api.getStorageLayouts(currentLab);
+        setLayouts(data);
+        if (data.length > 0 && data[0].cabinets.length > 0) {
+          setSelectedCabinetId(data[0].cabinets[0].id);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadLayouts();
+  }, [currentLab]);
+
+  // Find all cabinets across loaded layouts
+  const allCabinets = layouts.flatMap((l) =>
+    l.cabinets.map((c) => ({ ...c, labName: l.name, labCode: l.lab }))
+  );
+
+  const activeCabinet = allCabinets.find((c) => c.id === selectedCabinetId) || allCabinets[0];
+
+  // Helper to match assets stored in a specific shelf
+  const getAssetsForShelf = (cabinetName: string, shelfLabel: string) => {
+    return assets.filter((a) => {
+      const loc = a.storageLocation;
+      if (!loc) return false;
+      const cabMatch =
+        cabinetName.toLowerCase().includes(loc.rackOrCabinet.toLowerCase()) ||
+        loc.rackOrCabinet.toLowerCase().includes(cabinetName.toLowerCase());
+      const shelfMatch =
+        shelfLabel.toLowerCase().includes(loc.shelf.toLowerCase()) ||
+        loc.shelf.toLowerCase().includes(shelfLabel.toLowerCase());
+      return cabMatch || shelfMatch;
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">
+              Phase 3: Facility Architecture
+            </span>
+            <span className="text-slate-500">·</span>
+            <span className="text-xs text-slate-300">Physical Warehouse & Rack Visualization</span>
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Laboratory Storage & Rack Map
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Interactive visual mapping of server racks, tool chests, and consumable shelving tiers for COMLAB, NETLAB, and TESDA.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <Server className="w-4 h-4 text-blue-400" />
+          <span>{allCabinets.length} Mapped Enclosures</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Cabinet / Rack Directory */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider pb-2 border-b border-slate-800">
+            Cabinets & Server Racks
+          </div>
+
+          <div className="space-y-1.5">
+            {allCabinets.map((cab) => {
+              const isSelected = activeCabinet?.id === cab.id;
+              return (
+                <button
+                  key={cab.id}
+                  onClick={() => setSelectedCabinetId(cab.id)}
+                  className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-950/70 border-amber-400 text-white shadow-sm'
+                      : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold truncate">{cab.name}</span>
+                    <span className="text-[10px] font-mono text-amber-400 font-bold">
+                      {cab.labCode}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 truncate mt-1">
+                    {cab.shelves.length} Shelves / RU Tiers
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Cabinet's Shelves & Racks Visualizer */}
+        <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+          {activeCabinet ? (
+            <>
+              {/* Cabinet Meta */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-white">{activeCabinet.name}</h3>
+                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
+                      {activeCabinet.labCode}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{activeCabinet.description}</p>
+                </div>
+                <div className="text-xs text-slate-400 font-medium">
+                  Facility: <strong className="text-slate-200">{activeCabinet.labName}</strong>
+                </div>
+              </div>
+
+              {/* Physical Shelving Tiers */}
+              <div className="space-y-4">
+                {activeCabinet.shelves.map((shelf, sIdx) => {
+                  const shelfAssets = getAssetsForShelf(activeCabinet.name, shelf.label);
+
+                  return (
+                    <div
+                      key={shelf.id}
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-4 transition-all hover:border-slate-700"
+                    >
+                      {/* Shelf Title Bar */}
+                      <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-800/70 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded bg-slate-800 text-amber-400 font-mono font-bold flex items-center justify-center text-[10px]">
+                            {sIdx + 1}
+                          </span>
+                          <span className="font-semibold text-slate-200">{shelf.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            Assigned: <strong className="text-slate-300">{shelf.assignedCategory}</strong>
+                          </span>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-[11px] font-mono text-amber-400">
+                            {shelfAssets.length} Stored Items
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Items on this shelf */}
+                      {shelfAssets.length === 0 ? (
+                        <div className="text-xs text-slate-400 italic py-2 pl-7">
+                          Available shelf capacity for incoming {shelf.assignedCategory.toLowerCase()}.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-2">
+                          {shelfAssets.map((asset) => (
+                            <div
+                              key={asset.id}
+                              className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-blue-700/50 transition-colors"
+                            >
+                              <div className="min-w-0 pr-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-amber-400">
+                                    {asset.assetTag}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400">
+                                    {asset.availableQuantity} of {asset.quantity} {asset.unit || 'units'}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-slate-200 font-medium truncate mt-0.5">
+                                  {asset.name}
+                                </div>
+                              </div>
+
+                              {onSelectAssetForTag && (
+                                <button
+                                  onClick={() => onSelectAssetForTag(asset)}
+                                  title="Generate tag for this asset"
+                                  className="p-1.5 text-blue-400 hover:text-white hover:bg-blue-900/50 rounded transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Tag className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="py-12 text-center text-slate-400">
+              Select a cabinet or server rack from the left to inspect shelving layout.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

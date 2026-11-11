@@ -1,0 +1,958 @@
+import mongoose from 'mongoose';
+import { AssetModel, IAsset } from '../models/Asset.js';
+import { LoanModel, ILoan } from '../models/Loan.js';
+import { MaintenanceModel, IMaintenance } from '../models/Maintenance.js';
+
+// Pre-seeded comprehensive data for ACLC College of Manila Laboratories:
+// - COMLAB: 40 Workstations & supporting gear
+// - NETLAB: 25 Networking racks, routers & switches
+// - TESDA Hardware Lab: 20 Hardware maintenance & testing units
+export const INITIAL_ASSETS = [
+  // COMLAB Assets (Computer Laboratory)
+  {
+    id: 'asset-com-01',
+    assetTag: 'ACLC-COM-WS01',
+    name: 'Dell OptiPlex 7090 Desktop Workstation',
+    category: 'Equipment',
+    lab: 'COMLAB',
+    status: 'Available',
+    quantity: 40,
+    availableQuantity: 36,
+    unit: 'units',
+    serialNumber: 'SN-COM-7090-001X',
+    brandModel: 'Dell OptiPlex 7090 Tower',
+    specs: 'Intel Core i7-11700, 16GB DDR4 RAM, 512GB NVMe SSD, Dual DisplayPort, Win 11 Pro',
+    storageLocation: {
+      rackOrCabinet: 'Row A-D Stations',
+      shelf: 'Station Units 01-40',
+      slot: 'Desk Mount',
+    },
+    acquisitionDate: '2024-06-15',
+    lastMaintained: '2026-10-12',
+    notes: 'Standard programming and database lab client unit.',
+  },
+  {
+    id: 'asset-com-02',
+    assetTag: 'ACLC-COM-MON01',
+    name: 'Dell 24" UltraSharp FHD Monitor',
+    category: 'Equipment',
+    lab: 'COMLAB',
+    status: 'Available',
+    quantity: 40,
+    availableQuantity: 38,
+    unit: 'units',
+    serialNumber: 'SN-MN-2419-040',
+    brandModel: 'Dell U2419H IPS',
+    specs: '1080p 60Hz, 99% sRGB, Height & Pivot Adjustable Stand',
+    storageLocation: {
+      rackOrCabinet: 'Row A-D Stations',
+      shelf: 'Display Arms',
+      slot: 'Per Station',
+    },
+    acquisitionDate: '2024-06-15',
+    lastMaintained: '2026-09-20',
+  },
+  {
+    id: 'asset-com-03',
+    assetTag: 'ACLC-COM-PROJ01',
+    name: 'Epson EB-FH52 4000-Lumen Projector',
+    category: 'Equipment',
+    lab: 'COMLAB',
+    status: 'In Use',
+    quantity: 2,
+    availableQuantity: 1,
+    unit: 'units',
+    serialNumber: 'EP-EB-2023-019',
+    brandModel: 'Epson EB-FH52',
+    specs: 'Full HD 1080p, 4000 lumens, Miracast Wireless, HDMI/VGA',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet COM-A',
+      shelf: 'Shelf 1 (AV Gear)',
+      slot: 'Rack 1',
+    },
+    acquisitionDate: '2023-11-10',
+    lastMaintained: '2026-10-05',
+    notes: 'Ceiling mount + backup portable unit.',
+  },
+  {
+    id: 'asset-com-04',
+    assetTag: 'ACLC-COM-CRIMP01',
+    name: 'Heavy-Duty RJ45/RJ11 Ratchet Crimping Tool',
+    category: 'Tools',
+    lab: 'COMLAB',
+    status: 'Available',
+    quantity: 12,
+    availableQuantity: 10,
+    unit: 'pcs',
+    serialNumber: 'TL-CRIMP-012',
+    brandModel: 'Pro\'sKit CP-376TR',
+    specs: 'Ratchet mechanism, integrated cable stripper and cutter',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet COM-B',
+      shelf: 'Shelf 3 (Tools Box)',
+      slot: 'Bin 4',
+    },
+    acquisitionDate: '2025-01-20',
+    lastMaintained: '2026-08-14',
+  },
+  {
+    id: 'asset-com-05',
+    assetTag: 'ACLC-COM-RJ45',
+    name: 'Cat6 Unshielded RJ45 Modular Plugs',
+    category: 'Consumable Materials',
+    lab: 'COMLAB',
+    status: 'Available',
+    quantity: 450,
+    availableQuantity: 450,
+    unit: 'pcs',
+    brandModel: 'AMP Netconnect Cat6 Gold-Plated',
+    specs: '50-micron gold plated contacts, 8P8C pass-through',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet COM-B',
+      shelf: 'Shelf 4 (Consumables)',
+      slot: 'Bin C-01',
+    },
+    acquisitionDate: '2026-02-10',
+  },
+
+  // NETLAB Assets (Networking Laboratory - 25 Units Scope)
+  {
+    id: 'asset-net-01',
+    assetTag: 'ACLC-NET-RTR01',
+    name: 'Cisco 2911 Integrated Services Router',
+    category: 'Equipment',
+    lab: 'NETLAB',
+    status: 'Available',
+    quantity: 10,
+    availableQuantity: 8,
+    unit: 'units',
+    serialNumber: 'FCZ1948B012',
+    brandModel: 'Cisco ISR 2911/K9',
+    specs: '3x GE ports, 4x EHWIC slots, 2x DSP slots, 512MB RAM, Cisco IOS 15.x',
+    storageLocation: {
+      rackOrCabinet: 'Server Rack 1 & 2',
+      shelf: 'Rack Units 14-24',
+      slot: 'Bay 1-10',
+    },
+    acquisitionDate: '2023-08-01',
+    lastMaintained: '2026-10-18',
+    notes: 'Used for CCNA Routing & Switching practical exams.',
+  },
+  {
+    id: 'asset-net-02',
+    assetTag: 'ACLC-NET-SW01',
+    name: 'Cisco Catalyst 2960-X 24-Port Switch',
+    category: 'Equipment',
+    lab: 'NETLAB',
+    status: 'Available',
+    quantity: 15,
+    availableQuantity: 12,
+    unit: 'units',
+    serialNumber: 'FCZ2042A890',
+    brandModel: 'WS-C2960X-24TS-L',
+    specs: '24x GigE ports, 4x 1G SFP uplinks, LAN Base feature set, FlexStack-Plus',
+    storageLocation: {
+      rackOrCabinet: 'Server Rack 1 & 2',
+      shelf: 'Rack Units 04-12',
+      slot: 'Bay 1-15',
+    },
+    acquisitionDate: '2023-08-01',
+    lastMaintained: '2026-10-22',
+  },
+  {
+    id: 'asset-net-03',
+    assetTag: 'ACLC-NET-TEST01',
+    name: 'Fluke Networks MicroScanner2 Cable Verifier',
+    category: 'Tools',
+    lab: 'NETLAB',
+    status: 'Available',
+    quantity: 4,
+    availableQuantity: 2,
+    unit: 'units',
+    serialNumber: 'FLK-MS2-84920',
+    brandModel: 'Fluke MS2-100',
+    specs: 'Voice/Data/Video verification, wiremap, length, cable ID, tone generator',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet NET-ToolSafe',
+      shelf: 'Shelf 1 (Diagnostic Instruments)',
+      slot: 'Case 02',
+    },
+    acquisitionDate: '2024-04-18',
+    lastMaintained: '2026-09-02',
+    notes: 'Precision test instrument. Handled only with supervisor sign-off.',
+  },
+  {
+    id: 'asset-net-04',
+    assetTag: 'ACLC-NET-CAB-UTP',
+    name: 'Cat6 UTP Solid Pure Copper Cable Reel',
+    category: 'Consumable Materials',
+    lab: 'NETLAB',
+    status: 'Available',
+    quantity: 5,
+    availableQuantity: 3,
+    unit: 'boxes (305m)',
+    brandModel: 'Schneider Actassi Cat6 U/UTP',
+    specs: '23 AWG, 250 MHz, Flame retardant PVC jacket, 305 meters reel',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet NET-Consumables',
+      shelf: 'Floor Base Tier',
+      slot: 'Spool Holder',
+    },
+    acquisitionDate: '2026-01-15',
+  },
+  {
+    id: 'asset-net-05',
+    assetTag: 'ACLC-NET-PATCH01',
+    name: '24-Port Cat6 1U Loaded Patch Panel',
+    category: 'Equipment',
+    lab: 'NETLAB',
+    status: 'Under Maintenance',
+    quantity: 6,
+    availableQuantity: 5,
+    unit: 'units',
+    serialNumber: 'PP-24-CAT6-004',
+    brandModel: 'D-Link 24-Port 1U',
+    specs: '110/Krone punch-down block, T568A/B color coding',
+    storageLocation: {
+      rackOrCabinet: 'Server Rack 3',
+      shelf: 'RU 08',
+      slot: 'Main Frame',
+    },
+    acquisitionDate: '2024-02-11',
+    lastMaintained: '2026-10-30',
+  },
+
+  // TESDA Hardware Lab Assets (20 Units Scope - Computer Systems Servicing NC II)
+  {
+    id: 'asset-tes-01',
+    assetTag: 'ACLC-TES-TB01',
+    name: 'Modular Hardware Assembly & Bench Test Bed',
+    category: 'Equipment',
+    lab: 'TESDA',
+    status: 'Available',
+    quantity: 20,
+    availableQuantity: 18,
+    unit: 'benches',
+    serialNumber: 'TESDA-CSS-TB-020',
+    brandModel: 'AeroCool Open Air Rig / ASUS Prime AM4',
+    specs: 'AMD Ryzen 5 APU, 8GB DDR4, Modular PSU 550W, Open Acrylic Test Frame',
+    storageLocation: {
+      rackOrCabinet: 'Workbenches 1-10',
+      shelf: 'Station A & B',
+      slot: 'Bench Mount',
+    },
+    acquisitionDate: '2024-09-05',
+    lastMaintained: '2026-10-28',
+    notes: 'Used for TESDA CSS NC II Assessment & Troubleshooting tests.',
+  },
+  {
+    id: 'asset-tes-02',
+    assetTag: 'ACLC-TES-SOLD01',
+    name: 'Hakko FX-888D Digital Soldering Station',
+    category: 'Tools',
+    lab: 'TESDA',
+    status: 'Available',
+    quantity: 10,
+    availableQuantity: 8,
+    unit: 'units',
+    serialNumber: 'HK-FX888D-5930',
+    brandModel: 'Hakko FX-888D 70W',
+    specs: 'Digital temperature adjustment 50-480°C, ESD safe, ceramic heating element',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet TESDA-Tools',
+      shelf: 'Shelf 2 (Electronics & Soldering)',
+      slot: 'Bay 1-10',
+    },
+    acquisitionDate: '2024-10-01',
+    lastMaintained: '2026-09-15',
+  },
+  {
+    id: 'asset-tes-03',
+    assetTag: 'ACLC-TES-DMM01',
+    name: 'Uni-T UT61E+ High-Precision Digital Multimeter',
+    category: 'Tools',
+    lab: 'TESDA',
+    status: 'Available',
+    quantity: 12,
+    availableQuantity: 9,
+    unit: 'units',
+    serialNumber: 'UT-61E-202409',
+    brandModel: 'UNI-T UT61E+ True RMS',
+    specs: '22,000 count display, AC/DC voltage/current, resistance, capacitance, diode check',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet TESDA-Tools',
+      shelf: 'Shelf 1 (Measurement Instruments)',
+      slot: 'Foam Tray A',
+    },
+    acquisitionDate: '2025-03-12',
+    lastMaintained: '2026-09-18',
+  },
+  {
+    id: 'asset-tes-04',
+    assetTag: 'ACLC-TES-PASTE01',
+    name: 'Arctic MX-4 High-Performance Thermal Compound',
+    category: 'Consumable Materials',
+    lab: 'TESDA',
+    status: 'Available',
+    quantity: 24,
+    availableQuantity: 19,
+    unit: 'syringes (4g)',
+    brandModel: 'Arctic MX-4 2019 Edition',
+    specs: 'Carbon micro-particles, 8.5 W/(mK) thermal conductivity, non-conductive',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet TESDA-Consumables',
+      shelf: 'Shelf 3',
+      slot: 'Chemical Tray',
+    },
+    acquisitionDate: '2026-01-20',
+  },
+  {
+    id: 'asset-tes-05',
+    assetTag: 'ACLC-TES-PSUTEST01',
+    name: 'Digital LCD ATX Power Supply Tester 24-Pin',
+    category: 'Tools',
+    lab: 'TESDA',
+    status: 'Damaged',
+    quantity: 6,
+    availableQuantity: 4,
+    unit: 'pcs',
+    serialNumber: 'PSU-TST-006',
+    brandModel: 'Thermaltake Dr. Power II',
+    specs: 'Tests +12V, -12V, +5V, +5VSB, +3.3V rails with PG alarm display',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet TESDA-Tools',
+      shelf: 'Shelf 3 (Diagnostic Testers)',
+      slot: 'Bin D-02',
+    },
+    acquisitionDate: '2024-05-10',
+    lastMaintained: '2026-08-01',
+    notes: 'Unit #3 reporting faulty backlight; queued for technician diagnosis.',
+  },
+];
+
+export const INITIAL_LOANS = [
+  {
+    id: 'loan-001',
+    borrowerName: 'Juan Dela Cruz',
+    borrowerIdNumber: '2023-MNL-0482',
+    borrowerRole: 'Student',
+    departmentSection: 'BSCS-3A',
+    assetId: 'asset-net-03',
+    assetTag: 'ACLC-NET-TEST01',
+    assetName: 'Fluke Networks MicroScanner2 Cable Verifier',
+    lab: 'NETLAB',
+    quantity: 1,
+    dateBorrowed: '2026-11-08',
+    expectedReturnDate: '2026-11-10',
+    status: 'Active',
+    purpose: 'Network Architecture Cabling Capstone Defense Preparation',
+    issuedBy: 'Engr. M. Santos (Custodian)',
+  },
+  {
+    id: 'loan-002',
+    borrowerName: 'Maria Clara Santos',
+    borrowerIdNumber: '2024-MNL-1190',
+    borrowerRole: 'TESDA Scholar',
+    departmentSection: 'TVET-CSS-NCII',
+    assetId: 'asset-tes-02',
+    assetTag: 'ACLC-TES-SOLD01',
+    assetName: 'Hakko FX-888D Digital Soldering Station',
+    lab: 'TESDA',
+    quantity: 1,
+    dateBorrowed: '2026-11-04',
+    expectedReturnDate: '2026-11-07',
+    status: 'Overdue',
+    purpose: 'Power Supply PCB SMD Component Replacement Lab Exercise',
+    issuedBy: 'Prof. R. Bautista',
+  },
+  {
+    id: 'loan-003',
+    borrowerName: 'Prof. Roberto Bautista',
+    borrowerIdNumber: 'FAC-2019-012',
+    borrowerRole: 'Faculty',
+    departmentSection: 'IT Department',
+    assetId: 'asset-com-03',
+    assetTag: 'ACLC-COM-PROJ01',
+    assetName: 'Epson EB-FH52 4000-Lumen Projector',
+    lab: 'COMLAB',
+    quantity: 1,
+    dateBorrowed: '2026-11-09',
+    expectedReturnDate: '2026-11-11',
+    status: 'Active',
+    purpose: 'Multimedia Computing Lecture and Lab Demo',
+    issuedBy: 'Admin Desk',
+  },
+  {
+    id: 'loan-004',
+    borrowerName: 'Carl Kenneth Reyes',
+    borrowerIdNumber: '2023-MNL-0781',
+    borrowerRole: 'Student',
+    departmentSection: 'ACT-2B',
+    assetId: 'asset-com-04',
+    assetTag: 'ACLC-COM-CRIMP01',
+    assetName: 'Heavy-Duty RJ45/RJ11 Ratchet Crimping Tool',
+    lab: 'COMLAB',
+    quantity: 2,
+    dateBorrowed: '2026-11-02',
+    expectedReturnDate: '2026-11-03',
+    dateReturned: '2026-11-03',
+    status: 'Returned',
+    purpose: 'Data Communications Lab Exercise #4',
+    issuedBy: 'Engr. M. Santos',
+    returnedNotes: 'Returned in good operating condition with blades intact.',
+  },
+];
+
+export const INITIAL_MAINTENANCE = [
+  {
+    id: 'maint-001',
+    title: 'COMLAB PC Imaging & Windows 11 Cumulative Update',
+    assetId: 'asset-com-01',
+    assetTag: 'ACLC-COM-WS01',
+    lab: 'COMLAB',
+    type: 'PC Re-imaging',
+    column: 'Under Repair',
+    priority: 'High',
+    scheduledDate: '2026-11-12',
+    assignedTechnician: 'Tech. Alan Villanueva',
+    description: 'Deploy clean Windows 11 sysprep image containing Visual Studio, NetBeans, MySQL Server, and packet tracer across 40 workstations.',
+    diagnosis: 'Previous OS profile bloated with temp files from database course.',
+    costEstimate: 0,
+  },
+  {
+    id: 'maint-002',
+    title: 'NETLAB Cisco Switch 2960-X Firmware Hardening',
+    assetId: 'asset-net-02',
+    assetTag: 'ACLC-NET-SW01',
+    lab: 'NETLAB',
+    type: 'Network Audit',
+    column: 'Reported',
+    priority: 'Medium',
+    scheduledDate: '2026-11-15',
+    assignedTechnician: 'Engr. Michael Santos',
+    description: 'Update Cisco IOS-XE security baseline, disable unused telnet ports, and re-flash VLAN database for incoming networking batch.',
+    costEstimate: 0,
+  },
+  {
+    id: 'maint-003',
+    title: 'TESDA PSU Tester #3 Display Backlight Failure',
+    assetId: 'asset-tes-05',
+    assetTag: 'ACLC-TES-PSUTEST01',
+    lab: 'TESDA',
+    type: 'Hardware Repair',
+    column: 'Diagnosed',
+    priority: 'High',
+    scheduledDate: '2026-11-10',
+    assignedTechnician: 'Tech. Dennis Ocampo',
+    description: 'LCD panel remains blank while testing rail voltage signals.',
+    diagnosis: 'Loose ribbon cable connector and blown surface-mount SMD diode on power intake.',
+    costEstimate: 450,
+  },
+  {
+    id: 'maint-004',
+    title: 'Quarterly Optical Laser Sensor Clean & Filter Replacement',
+    assetId: 'asset-com-03',
+    assetTag: 'ACLC-COM-PROJ01',
+    lab: 'COMLAB',
+    type: 'Routine Preventive',
+    column: 'Replaced/Retired',
+    priority: 'Low',
+    scheduledDate: '2026-10-30',
+    assignedTechnician: 'Tech. Dennis Ocampo',
+    description: 'Exhaust dust filter vacuuming and lamp cooling channel cleaning.',
+    diagnosis: 'Dust buildup mitigated before thermal throttling occurred.',
+    completedDate: '2026-10-31',
+    costEstimate: 200,
+  },
+];
+
+export const LAB_STORAGE_LAYOUTS = [
+  {
+    lab: 'COMLAB',
+    name: 'Computer Laboratory (Room 304)',
+    totalCapacityUnits: 40,
+    activeUnitsCount: 40,
+    cabinets: [
+      {
+        id: 'cab-com-a',
+        name: 'Cabinet COM-A (AV & Projector Depot)',
+        description: 'Enclosed steel cabinet for AV peripherals, HDMI extenders, and wireless presenters',
+        shelves: [
+          { id: 'com-a-s1', label: 'Shelf 1: Projectors & Lenses', assignedCategory: 'Equipment' },
+          { id: 'com-a-s2', label: 'Shelf 2: Presentation Accessories & Remotes', assignedCategory: 'Equipment' },
+          { id: 'com-a-s3', label: 'Shelf 3: Long HDMI/VGA Cable Spools', assignedCategory: 'Consumable Materials' },
+        ],
+      },
+      {
+        id: 'cab-com-b',
+        name: 'Cabinet COM-B (Technician Tools & Supplies)',
+        description: 'Double-door lockable storage with modular plastic organizer bins',
+        shelves: [
+          { id: 'com-b-s1', label: 'Shelf 1: Anti-Static Mats & Screwdrivers', assignedCategory: 'Tools' },
+          { id: 'com-b-s2', label: 'Shelf 2: Network Cable Testers & Tone Generators', assignedCategory: 'Tools' },
+          { id: 'com-b-s3', label: 'Shelf 3: Ratchet Crimping Tools', assignedCategory: 'Tools' },
+          { id: 'com-b-s4', label: 'Shelf 4: RJ45 Connectors & Boot Sleeves', assignedCategory: 'Consumable Materials' },
+        ],
+      },
+    ],
+  },
+  {
+    lab: 'NETLAB',
+    name: 'Networking Laboratory (Room 306)',
+    totalCapacityUnits: 25,
+    activeUnitsCount: 25,
+    cabinets: [
+      {
+        id: 'rack-net-01',
+        name: 'Server Rack Alpha (42U Server Enclosure)',
+        description: 'Standard 19-inch 4-post rack housing production routers, patch panels, and switch stacks',
+        shelves: [
+          { id: 'net-r1-s1', label: 'RU 01-12: Catalyst 2960-X Switches', assignedCategory: 'Equipment' },
+          { id: 'net-r1-s2', label: 'RU 13-24: Cisco 2911 ISR Routers', assignedCategory: 'Equipment' },
+          { id: 'net-r1-s3', label: 'RU 25-32: Patch Panels & Horizontal Cable Managers', assignedCategory: 'Equipment' },
+          { id: 'net-r1-s4', label: 'RU 33-42: Rackmount UPS & PDU Units', assignedCategory: 'Equipment' },
+        ],
+      },
+      {
+        id: 'cab-net-tools',
+        name: 'Cabinet NET-ToolSafe',
+        description: 'Secure lockup for fiber cleavers, OTDR adapters, and Fluke network verifiers',
+        shelves: [
+          { id: 'net-t-s1', label: 'Shelf 1: Fluke MicroScanner2 & Certifiers', assignedCategory: 'Tools' },
+          { id: 'net-t-s2', label: 'Shelf 2: Console Cables (RJ45 to USB/DB9)', assignedCategory: 'Consumable Materials' },
+          { id: 'net-t-s3', label: 'Floor Tier: 305m Cat6 Solid Copper Reels', assignedCategory: 'Consumable Materials' },
+        ],
+      },
+    ],
+  },
+  {
+    lab: 'TESDA',
+    name: 'TESDA Hardware Servicing Laboratory (Room 208)',
+    totalCapacityUnits: 20,
+    activeUnitsCount: 20,
+    cabinets: [
+      {
+        id: 'cab-tesda-tools',
+        name: 'Cabinet TESDA-Tools (Electronics & Servicing)',
+        description: 'Organized tool chests with magnetic tool holders and ESD bins',
+        shelves: [
+          { id: 'tes-t-s1', label: 'Shelf 1: Digital Multimeters & Clamp Meters', assignedCategory: 'Tools' },
+          { id: 'tes-t-s2', label: 'Shelf 2: Hakko Digital Soldering Stations & Desoldering Pumps', assignedCategory: 'Tools' },
+          { id: 'tes-t-s3', label: 'Shelf 3: Digital PSU Testers & POST Debug Cards', assignedCategory: 'Tools' },
+          { id: 'tes-t-s4', label: 'Shelf 4: Precision Screwdriver Bits & Spudgers', assignedCategory: 'Tools' },
+        ],
+      },
+      {
+        id: 'cab-tesda-cons',
+        name: 'Cabinet TESDA-Consumables (Supplies & Thermal Paste)',
+        description: 'Vented storage for thermal paste, flux pens, solder wick, and isopropyl alcohol',
+        shelves: [
+          { id: 'tes-c-s1', label: 'Shelf 1: Arctic MX-4 Thermal Compounds', assignedCategory: 'Consumable Materials' },
+          { id: 'tes-c-s2', label: 'Shelf 2: Lead-Free 60/40 Solder Wire Spools', assignedCategory: 'Consumable Materials' },
+          { id: 'tes-c-s3', label: 'Shelf 3: Thermal Pads & Heat-Shrink Tubing', assignedCategory: 'Consumable Materials' },
+        ],
+      },
+    ],
+  },
+];
+
+export interface MemoryLoan {
+  id: string;
+  borrowerName: string;
+  borrowerIdNumber: string;
+  borrowerRole: string;
+  departmentSection: string;
+  assetId: string;
+  assetTag: string;
+  assetName: string;
+  lab: string;
+  quantity: number;
+  dateBorrowed: string;
+  expectedReturnDate: string;
+  dateReturned?: string;
+  status: 'Active' | 'Returned' | 'Overdue';
+  purpose: string;
+  issuedBy: string;
+  returnedNotes?: string;
+}
+
+// In-Memory Fallback State (automatically used if MongoDB Atlas is not yet configured,
+// ensuring the application runs out-of-the-box seamlessly in AI Studio dev environment)
+let memoryAssets: any[] = [...INITIAL_ASSETS];
+let memoryLoans: MemoryLoan[] = [...INITIAL_LOANS] as MemoryLoan[];
+let memoryMaintenance: any[] = [...INITIAL_MAINTENANCE];
+let isMongoConnected = false;
+
+export async function initDatabaseConnection(): Promise<{ connected: boolean; message: string }> {
+  const mongoUri = process.env.MONGO_URI;
+
+  if (!mongoUri || mongoUri.includes('username:password') || mongoUri.includes('<username>')) {
+    isMongoConnected = false;
+    return {
+      connected: false,
+      message: 'MongoDB Atlas URI not configured or using placeholder. Running in High-Speed Local Storage Fallback mode with seeded lab assets.',
+    };
+  }
+
+  try {
+    if (mongoose.connection.readyState === 1) {
+      isMongoConnected = true;
+      return { connected: true, message: 'Connected to MongoDB Atlas database.' };
+    }
+
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    isMongoConnected = true;
+
+    // Seed database if empty
+    const count = await AssetModel.countDocuments();
+    if (count === 0) {
+      await AssetModel.insertMany(INITIAL_ASSETS);
+      await LoanModel.insertMany(INITIAL_LOANS);
+      await MaintenanceModel.insertMany(INITIAL_MAINTENANCE);
+    }
+
+    return { connected: true, message: 'Successfully connected and verified MongoDB Atlas instance.' };
+  } catch (err: any) {
+    isMongoConnected = false;
+    return {
+      connected: false,
+      message: `MongoDB Atlas connection error (${err.message}). Safe fallback mode active with in-memory persistence.`,
+    };
+  }
+}
+
+export const DataStore = {
+  isAtlasConnected: () => isMongoConnected,
+
+  // ASSETS
+  async getAssets(lab?: string, search?: string, category?: string, status?: string) {
+    if (isMongoConnected) {
+      const query: any = {};
+      if (lab && lab !== 'ALL') query.lab = lab;
+      if (category && category !== 'ALL') query.category = category;
+      if (status && status !== 'ALL') query.status = status;
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { assetTag: { $regex: search, $options: 'i' } },
+          { brandModel: { $regex: search, $options: 'i' } },
+          { serialNumber: { $regex: search, $options: 'i' } },
+        ];
+      }
+      const docs = await AssetModel.find(query).sort({ updatedAt: -1 }).lean();
+      return docs.map((d: any) => ({ ...d, id: d._id ? d._id.toString() : d.id }));
+    }
+
+    // In-memory fallback
+    let list = [...memoryAssets];
+    if (lab && lab !== 'ALL') list = list.filter((a) => a.lab === lab);
+    if (category && category !== 'ALL') list = list.filter((a) => a.category === category);
+    if (status && status !== 'ALL') list = list.filter((a) => a.status === status);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.assetTag.toLowerCase().includes(q) ||
+          (a.brandModel && a.brandModel.toLowerCase().includes(q)) ||
+          (a.serialNumber && a.serialNumber.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  },
+
+  async getAssetById(id: string) {
+    if (isMongoConnected) {
+      try {
+        const doc = await AssetModel.findById(id).lean();
+        if (doc) return { ...doc, id: doc._id.toString() };
+      } catch {
+        const byTag = await AssetModel.findOne({ assetTag: id }).lean();
+        if (byTag) return { ...byTag, id: byTag._id.toString() };
+      }
+    }
+    return memoryAssets.find((a) => a.id === id || a.assetTag === id) || null;
+  },
+
+  async createAsset(data: any) {
+    const assetTag = data.assetTag || `ACLC-${data.lab || 'GEN'}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newAsset = {
+      ...data,
+      assetTag: assetTag.toUpperCase().trim(),
+      quantity: Number(data.quantity) || 1,
+      availableQuantity: Number(data.availableQuantity !== undefined ? data.availableQuantity : data.quantity),
+      status: data.status || 'Available',
+      storageLocation: data.storageLocation || { rackOrCabinet: 'Main Depot', shelf: 'Shelf 1' },
+    };
+
+    if (isMongoConnected) {
+      const created = await AssetModel.create(newAsset);
+      return { ...created.toObject(), id: created._id.toString() };
+    }
+
+    const localAsset = {
+      ...newAsset,
+      id: `asset-${Date.now()}`,
+    };
+    memoryAssets.unshift(localAsset);
+    return localAsset;
+  },
+
+  async updateAsset(id: string, updates: any) {
+    if (isMongoConnected) {
+      try {
+        const updated = await AssetModel.findByIdAndUpdate(id, updates, { new: true }).lean();
+        if (updated) return { ...updated, id: updated._id.toString() };
+      } catch {}
+    }
+
+    const index = memoryAssets.findIndex((a) => a.id === id || a.assetTag === id);
+    if (index !== -1) {
+      memoryAssets[index] = { ...memoryAssets[index], ...updates };
+      return memoryAssets[index];
+    }
+    return null;
+  },
+
+  async deleteAsset(id: string) {
+    if (isMongoConnected) {
+      try {
+        await AssetModel.findByIdAndDelete(id);
+        return true;
+      } catch {}
+    }
+
+    const initialLength = memoryAssets.length;
+    memoryAssets = memoryAssets.filter((a) => a.id !== id && a.assetTag !== id);
+    return memoryAssets.length < initialLength;
+  },
+
+  // LOANS / DISPENSING
+  async getLoans(lab?: string, status?: string) {
+    // Auto-update overdue status on inspection
+    const today = new Date().toISOString().split('T')[0];
+
+    if (isMongoConnected) {
+      const query: any = {};
+      if (lab && lab !== 'ALL') query.lab = lab;
+      if (status && status !== 'ALL') query.status = status;
+      const docs = await LoanModel.find(query).sort({ createdAt: -1 }).lean();
+      return docs.map((d: any) => {
+        let currentStatus = d.status;
+        if (currentStatus === 'Active' && d.expectedReturnDate < today) {
+          currentStatus = 'Overdue';
+        }
+        return { ...d, id: d._id ? d._id.toString() : d.id, status: currentStatus };
+      });
+    }
+
+    let list = memoryAssets.length ? memoryLoans : [];
+    // Mark overdue in memory
+    list = list.map((l) => {
+      if (l.status === 'Active' && l.expectedReturnDate < today) {
+        return { ...l, status: 'Overdue' as const };
+      }
+      return l;
+    });
+    memoryLoans = list;
+
+    if (lab && lab !== 'ALL') list = list.filter((l) => l.lab === lab);
+    if (status && status !== 'ALL') list = list.filter((l) => l.status === status);
+    return list;
+  },
+
+  async createLoan(data: any) {
+    const qty = Number(data.quantity) || 1;
+    // Deduct available quantity from target asset
+    const asset = await this.getAssetById(data.assetId);
+    if (asset) {
+      const newAvail = Math.max(0, (asset.availableQuantity || 0) - qty);
+      const newStatus = newAvail === 0 ? 'In Use' : asset.status;
+      await this.updateAsset(asset.id, {
+        availableQuantity: newAvail,
+        status: newStatus,
+      });
+    }
+
+    const newLoan = {
+      ...data,
+      quantity: qty,
+      dateBorrowed: data.dateBorrowed || new Date().toISOString().split('T')[0],
+      status: 'Active',
+      issuedBy: data.issuedBy || 'Lab Custodian',
+    };
+
+    if (isMongoConnected) {
+      const created = await LoanModel.create(newLoan);
+      return { ...created.toObject(), id: created._id.toString() };
+    }
+
+    const localLoan = {
+      ...newLoan,
+      id: `loan-${Date.now()}`,
+    };
+    memoryLoans.unshift(localLoan);
+    return localLoan;
+  },
+
+  async returnLoan(id: string, notes?: string) {
+    const today = new Date().toISOString().split('T')[0];
+    let loanRecord: any = null;
+
+    if (isMongoConnected) {
+      loanRecord = await LoanModel.findById(id);
+      if (loanRecord) {
+        loanRecord.status = 'Returned';
+        loanRecord.dateReturned = today;
+        if (notes) loanRecord.returnedNotes = notes;
+        await loanRecord.save();
+      }
+    } else {
+      const idx = memoryLoans.findIndex((l) => l.id === id);
+      if (idx !== -1) {
+        memoryLoans[idx] = {
+          ...memoryLoans[idx],
+          status: 'Returned',
+          dateReturned: today,
+          returnedNotes: notes || memoryLoans[idx].returnedNotes,
+        };
+        loanRecord = memoryLoans[idx];
+      }
+    }
+
+    if (loanRecord) {
+      // Restore asset available quantity
+      const asset = await this.getAssetById(loanRecord.assetId);
+      if (asset) {
+        const restoredQty = (asset.availableQuantity || 0) + (loanRecord.quantity || 1);
+        await this.updateAsset(asset.id, {
+          availableQuantity: Math.min(asset.quantity, restoredQty),
+          status: 'Available',
+        });
+      }
+    }
+
+    return loanRecord;
+  },
+
+  // MAINTENANCE & KANBAN
+  async getMaintenanceTasks(lab?: string) {
+    if (isMongoConnected) {
+      const query: any = {};
+      if (lab && lab !== 'ALL') query.lab = lab;
+      const docs = await MaintenanceModel.find(query).sort({ scheduledDate: 1 }).lean();
+      return docs.map((d: any) => ({ ...d, id: d._id ? d._id.toString() : d.id }));
+    }
+
+    let list = [...memoryMaintenance];
+    if (lab && lab !== 'ALL') list = list.filter((m) => m.lab === lab);
+    return list;
+  },
+
+  async createMaintenanceTask(data: any) {
+    const newTask = {
+      ...data,
+      column: data.column || 'Reported',
+      priority: data.priority || 'Medium',
+      scheduledDate: data.scheduledDate || new Date().toISOString().split('T')[0],
+      costEstimate: Number(data.costEstimate) || 0,
+    };
+
+    // If an asset is linked and task is under repair or diagnosed, sync asset status
+    if (newTask.assetId) {
+      await this.updateAsset(newTask.assetId, {
+        status: newTask.column === 'Replaced/Retired' ? 'Archived' : 'Under Maintenance',
+      });
+    }
+
+    if (isMongoConnected) {
+      const created = await MaintenanceModel.create(newTask);
+      return { ...created.toObject(), id: created._id.toString() };
+    }
+
+    const localTask = {
+      ...newTask,
+      id: `maint-${Date.now()}`,
+    };
+    memoryMaintenance.push(localTask);
+    return localTask;
+  },
+
+  async updateMaintenanceTask(id: string, updates: any) {
+    if (isMongoConnected) {
+      try {
+        const updated = await MaintenanceModel.findByIdAndUpdate(id, updates, { new: true }).lean();
+        if (updated) return { ...updated, id: updated._id.toString() };
+      } catch {}
+    }
+
+    const index = memoryMaintenance.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      memoryMaintenance[index] = { ...memoryMaintenance[index], ...updates };
+      // If moved to Replaced/Retired or Diagnosed, optionally reflect on asset
+      if (updates.column === 'Replaced/Retired' && memoryMaintenance[index].assetId) {
+        await this.updateAsset(memoryMaintenance[index].assetId!, { status: 'Available' });
+      }
+      return memoryMaintenance[index];
+    }
+    return null;
+  },
+
+  async deleteMaintenanceTask(id: string) {
+    if (isMongoConnected) {
+      try {
+        await MaintenanceModel.findByIdAndDelete(id);
+        return true;
+      } catch {}
+    }
+
+    const initialLen = memoryMaintenance.length;
+    memoryMaintenance = memoryMaintenance.filter((m) => m.id !== id);
+    return memoryMaintenance.length < initialLen;
+  },
+
+  // STORAGE LAYOUTS
+  getStorageLayouts(lab?: string) {
+    if (lab && lab !== 'ALL') {
+      return LAB_STORAGE_LAYOUTS.filter((l) => l.lab === lab);
+    }
+    return LAB_STORAGE_LAYOUTS;
+  },
+
+  // SUMMARY AUDIT & METRICS
+  async getMetrics(lab?: string) {
+    const assets = await this.getAssets(lab);
+    const loans = await this.getLoans(lab);
+    const maintenance = await this.getMaintenanceTasks(lab);
+
+    const totalAssets = assets.reduce((acc, a) => acc + (a.quantity || 1), 0);
+    const availableAssets = assets.reduce((acc, a) => acc + (a.availableQuantity || 0), 0);
+    const inUseAssets = assets.filter((a) => a.status === 'In Use').reduce((acc, a) => acc + (a.quantity - a.availableQuantity), 0);
+    const damagedAssets = assets.filter((a) => a.status === 'Damaged').reduce((acc, a) => acc + a.quantity, 0);
+    const activeLoans = loans.filter((l) => l.status === 'Active' || l.status === 'Overdue').length;
+    const overdueLoans = loans.filter((l) => l.status === 'Overdue').length;
+    const pendingMaintenance = maintenance.filter((m) => m.column !== 'Replaced/Retired').length;
+
+    return {
+      totalAssets,
+      availableAssets,
+      inUseAssets: inUseAssets > 0 ? inUseAssets : (totalAssets - availableAssets),
+      damagedAssets,
+      activeLoans,
+      overdueLoans,
+      pendingMaintenance,
+      totalAssetItemsCount: assets.length,
+      isAtlasConnected: isMongoConnected,
+    };
+  },
+
+  // RESET SEED
+  async resetToDefaults() {
+    memoryAssets = [...INITIAL_ASSETS];
+    memoryLoans = [...INITIAL_LOANS] as MemoryLoan[];
+    memoryMaintenance = [...INITIAL_MAINTENANCE];
+    return { success: true, message: 'Reset to default ACLC Manila lab catalog.' };
+  },
+};
