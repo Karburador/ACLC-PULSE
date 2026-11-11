@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DataStore, initDatabaseConnection } from '../services/dataStore.js';
+import { DataStore, initDatabaseConnection, isValidMongoUri } from '../services/dataStore.js';
 
 export const getMetrics = async (req: Request, res: Response) => {
   try {
@@ -31,7 +31,7 @@ export const getSystemHealth = async (_req: Request, res: Response) => {
         institution: 'ACLC College of Manila',
         status: 'Operational',
         databaseMode: isAtlas ? 'MongoDB Atlas (Production)' : 'Local High-Speed Fallback (Preview/Offline Ready)',
-        mongoUriConfigured: Boolean(process.env.MONGO_URI && !process.env.MONGO_URI.includes('username:password')),
+        mongoUriConfigured: isValidMongoUri(process.env.MONGO_URI),
         clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
         labsManaged: ['COMLAB (40 units)', 'NETLAB (25 units)', 'TESDA Hardware Lab (20 units)'],
         timestamp: new Date().toISOString(),

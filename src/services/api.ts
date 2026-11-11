@@ -1,24 +1,50 @@
 import { Asset, LoanRecord, MaintenanceTask, LabStorageLayout } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL
-  ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}/api`
-  : '/api';
+const rawBase = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL =
+  rawBase && typeof rawBase === 'string' && rawBase.trim() !== '' && rawBase !== 'undefined'
+    ? `${rawBase.trim().replace(/\/$/, '')}/api`
+    : '/api';
 
-async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function request<T>(endpoint: string, options?: RequestInit, retries = 2): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options?.headers || {}),
-    },
-    ...options,
-  });
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(options?.headers || {}),
+      },
+      ...options,
+    });
 
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || `HTTP error ${res.status}`);
+    const contentType = res.headers.get('content-type') || '';
+
+    // If response is not JSON (e.g. server returned HTML during reboot or proxy 502)
+    if (!contentType.includes('application/json')) {
+      if (retries > 0) {
+        // Transient server start, wait and retry
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        return request<T>(endpoint, options, retries - 1);
+      }
+      const text = await res.text();
+      throw new Error(
+        `Backend returned HTML instead of JSON (${res.status} ${res.statusText}). The server may still be initializing.`
+      );
+    }
+
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      throw new Error(data.error || `HTTP error ${res.status}`);
+    }
+    return data;
+  } catch (err: any) {
+    if (retries > 0 && (err.name === 'SyntaxError' || err.message?.includes('JSON'))) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      return request<T>(endpoint, options, retries - 1);
+    }
+    throw err;
   }
-  return data;
 }
 
 export const api = {

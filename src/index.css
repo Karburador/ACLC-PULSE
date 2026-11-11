@@ -1,10 +1,19 @@
+@import url('https://fonts.cdnfonts.com/css/kabel');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-kabel: 'Kabel', 'ITC Kabel', 'Kabel Bd BT', 'Century Gothic', sans-serif;
+}
+
+.font-kabel {
+  font-family: 'Kabel', 'ITC Kabel', 'Kabel Bd BT', 'Century Gothic', sans-serif;
+}
 
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    @apply antialiased bg-slate-950 text-slate-100;
+    @apply antialiased bg-slate-100 text-slate-900;
   }
 
   /* Ensure tabular nums are clean and aligned */

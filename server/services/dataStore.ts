@@ -583,14 +583,32 @@ let memoryLoans: MemoryLoan[] = [...INITIAL_LOANS] as MemoryLoan[];
 let memoryMaintenance: any[] = [...INITIAL_MAINTENANCE];
 let isMongoConnected = false;
 
+export function isValidMongoUri(uri?: string): boolean {
+  if (!uri || typeof uri !== 'string') return false;
+  const trimmed = uri.trim();
+  if (!trimmed.startsWith('mongodb://') && !trimmed.startsWith('mongodb+srv://')) {
+    return false;
+  }
+  const placeholders = [
+    'username:password',
+    '<username>',
+    '<password>',
+    '<cluster>',
+    'MY_MONGO_URI',
+    'your_mongodb_uri',
+    'cluster.mongodb.net',
+  ];
+  return !placeholders.some((ph) => trimmed.includes(ph));
+}
+
 export async function initDatabaseConnection(): Promise<{ connected: boolean; message: string }> {
   const mongoUri = process.env.MONGO_URI;
 
-  if (!mongoUri || mongoUri.includes('username:password') || mongoUri.includes('<username>')) {
+  if (!isValidMongoUri(mongoUri)) {
     isMongoConnected = false;
     return {
       connected: false,
-      message: 'MongoDB Atlas URI not configured or using placeholder. Running in High-Speed Local Storage Fallback mode with seeded lab assets.',
+      message: 'Running in Local Storage Engine mode with pre-seeded ACLC Manila laboratory units (COMLAB: 40, NETLAB: 25, TESDA: 20). Set MONGO_URI in Render to connect live MongoDB Atlas.',
     };
   }
 
@@ -600,7 +618,7 @@ export async function initDatabaseConnection(): Promise<{ connected: boolean; me
       return { connected: true, message: 'Connected to MongoDB Atlas database.' };
     }
 
-    await mongoose.connect(mongoUri, {
+    await mongoose.connect(mongoUri!, {
       serverSelectionTimeoutMS: 5000,
     });
     isMongoConnected = true;
@@ -618,7 +636,7 @@ export async function initDatabaseConnection(): Promise<{ connected: boolean; me
     isMongoConnected = false;
     return {
       connected: false,
-      message: `MongoDB Atlas connection error (${err.message}). Safe fallback mode active with in-memory persistence.`,
+      message: `Safe fallback mode active with in-memory persistence (${err.message}).`,
     };
   }
 }

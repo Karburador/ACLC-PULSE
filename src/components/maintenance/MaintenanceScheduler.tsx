@@ -1,15 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { MaintenanceTask, LabType } from '../../types';
 import {
-  Calendar,
-  CheckCircle2,
-  Clock,
   HardDrive,
   Cpu,
   Network,
   ShieldCheck,
-  Plus,
-  AlertCircle
 } from 'lucide-react';
 
 interface MaintenanceSchedulerProps {
@@ -23,7 +18,6 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
   currentLab,
   onAddTask,
 }) => {
-  // Pre-configured routine schedules for ACLC Manila's targeted laboratories
   const routineSchedules = [
     {
       lab: 'COMLAB',
@@ -83,10 +77,10 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
         <div>
-          <h3 className="text-sm font-bold text-white">Routine Preventive Schedule Calendar</h3>
-          <p className="text-xs text-slate-400">
+          <h3 className="text-sm font-black text-slate-950">Routine Preventive Schedule Calendar</h3>
+          <p className="text-xs text-slate-600 font-medium">
             Standard laboratory upkeep cycles mandated by ACLC Academic & Facilities IT Policy.
           </p>
         </div>
@@ -98,35 +92,39 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
           return (
             <div
               key={idx}
-              className="p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-colors space-y-3"
+              className="p-5 rounded-xl bg-white border-2 border-slate-200 hover:border-blue-600 transition-colors space-y-3 shadow-xs"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-950/60 border border-blue-800 text-blue-400 shrink-0">
-                    <Icon className="w-4 h-4" />
+                  <div className="p-2.5 rounded-lg bg-blue-100 border border-blue-300 text-blue-900 shrink-0">
+                    <Icon className="w-5 h-5 stroke-[2.5]" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-100">{routine.title}</h4>
-                    <span className="text-[11px] text-amber-400 font-medium">
+                    <h4 className="text-xs font-bold text-slate-950">{routine.title}</h4>
+                    <span className="text-[11px] text-blue-900 font-extrabold">
                       [{routine.lab}] · {routine.frequency}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-800/60 text-slate-400">
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-3 border-t border-slate-200 text-slate-700">
                 <div>
-                  Scope: <strong className="text-slate-200">{routine.itemsCount}</strong>
+                  Scope: <strong className="text-slate-950">{routine.itemsCount}</strong>
                 </div>
                 <div>
-                  Lead: <strong className="text-slate-200">{routine.technician}</strong>
+                  Lead: <strong className="text-slate-950">{routine.technician}</strong>
                 </div>
                 <div>
                   Next Due:{' '}
-                  <strong className="text-amber-300 font-mono">{routine.nextDue}</strong>
+                  <strong className="text-amber-950 font-mono font-bold bg-amber-100 px-1.5 py-0.2 rounded border border-amber-300">
+                    {routine.nextDue}
+                  </strong>
                 </div>
                 <div className="text-right">
-                  <span className="text-emerald-400 font-medium">Active Policy</span>
+                  <span className="text-emerald-800 font-black bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                    Active Policy
+                  </span>
                 </div>
               </div>
             </div>

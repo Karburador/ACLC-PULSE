@@ -40,6 +40,14 @@ app.use(express.urlencoded({ extended: true }));
 // REST API routes
 app.use('/api', apiRouter);
 
+// Strict 404 handler for any unmatched /api routes (prevents falling through to Vite HTML middleware)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
 // Database initialization
 initDatabaseConnection().then((res) => {
   console.log(`[ACLC-Pulse DB] ${res.message}`);
