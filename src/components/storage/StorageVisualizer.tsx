@@ -74,7 +74,7 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
             Laboratory Storage & Rack Map
           </h2>
           <p className="text-xs text-slate-600 mt-0.5 font-normal">
-            Interactive visual mapping of server racks, tool chests, and consumable shelving tiers for COMLAB, NETLAB, and TESDA.
+            Interactive visual mapping of server racks, tool chests, and storage enclosures across all 6 campus laboratories (COMLAB, NETLAB, TESDA, MACLAB, CYBERLAB, and IOTLAB).
           </p>
         </div>
 

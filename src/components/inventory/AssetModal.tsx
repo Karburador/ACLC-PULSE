@@ -7,7 +7,7 @@ interface AssetModalProps {
   onClose: () => void;
   onSave: (assetData: Partial<Asset>) => Promise<void>;
   assetToEdit?: Asset | null;
-  defaultLab?: 'COMLAB' | 'NETLAB' | 'TESDA';
+  defaultLab?: 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
 }
 
 export const AssetModal: React.FC<AssetModalProps> = ({
@@ -20,7 +20,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
   const [formData, setFormData] = useState<Partial<Asset>>({
     assetTag: '',
     name: '',
-    category: 'Equipment',
+    category: 'Computers',
     lab: defaultLab,
     status: 'Available',
     quantity: 1,
@@ -51,11 +51,17 @@ export const AssetModal: React.FC<AssetModalProps> = ({
         },
       });
     } else {
-      const generatedTag = `ACLC-${defaultLab === 'TESDA' ? 'TES' : defaultLab === 'NETLAB' ? 'NET' : 'COM'}-${Math.floor(100 + Math.random() * 900)}`;
+      const tagPrefix =
+        defaultLab === 'TESDA' ? 'TES' :
+        defaultLab === 'NETLAB' ? 'NET' :
+        defaultLab === 'MACLAB' ? 'MAC' :
+        defaultLab === 'CYBERLAB' ? 'CYB' :
+        defaultLab === 'IOTLAB' ? 'IOT' : 'COM';
+      const generatedTag = `ACLC-${tagPrefix}-${Math.floor(100 + Math.random() * 900)}`;
       setFormData({
         assetTag: generatedTag,
         name: '',
-        category: 'Equipment',
+        category: 'Computers',
         lab: defaultLab,
         status: 'Available',
         quantity: 1,
@@ -65,7 +71,12 @@ export const AssetModal: React.FC<AssetModalProps> = ({
         serialNumber: '',
         specs: '',
         storageLocation: {
-          rackOrCabinet: defaultLab === 'NETLAB' ? 'Server Rack 1' : defaultLab === 'TESDA' ? 'Cabinet TESDA-Tools' : 'Cabinet COM-A',
+          rackOrCabinet:
+            defaultLab === 'NETLAB' ? 'Server Rack 1' :
+            defaultLab === 'TESDA' ? 'Cabinet TESDA-Tools' :
+            defaultLab === 'MACLAB' ? 'Cabinet MAC-Secure' :
+            defaultLab === 'CYBERLAB' ? 'Cyber Server Rack Alpha' :
+            defaultLab === 'IOTLAB' ? 'Robotics Station A' : 'Cabinet COM-A',
           shelf: 'Shelf 1',
           slot: 'Bay 1',
         },
@@ -180,6 +191,9 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                 <option value="COMLAB">COMLAB (40 Units Scope)</option>
                 <option value="NETLAB">NETLAB (25 Units Scope)</option>
                 <option value="TESDA">TESDA Hardware (20 Units Scope)</option>
+                <option value="MACLAB">MACLAB (30 Units Scope)</option>
+                <option value="CYBERLAB">CYBERLAB (20 Units Scope)</option>
+                <option value="IOTLAB">IOTLAB (25 Units Scope)</option>
               </select>
             </div>
 
@@ -192,9 +206,12 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, category: e.target.value as AssetCategory })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
-                <option value="Equipment">Equipment (PC/Router/Switch)</option>
-                <option value="Tools">Tools (Crimpers/Multimeters/Testers)</option>
-                <option value="Consumable Materials">Consumable Materials (Plugs/Cables)</option>
+                <option value="Computers">Computers (Desktops, iMacs, Servers)</option>
+                <option value="Routers">Routers & Switches (Cisco, Fortinet, MikroTik)</option>
+                <option value="Tools">Tools (Fluke, Hakko, Multimeters, Toolkits)</option>
+                <option value="Projectors">Projectors & Displays (Epson, ViewSonic)</option>
+                <option value="Peripherals">Peripherals (Keyboards, Mice, Monitors, Cintiq)</option>
+                <option value="Consumables">Consumables (Cables, Plugs, Solder, Thermal)</option>
               </select>
             </div>
 
@@ -210,8 +227,6 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                 <option value="Available">Available</option>
                 <option value="In Use">In Use</option>
                 <option value="Under Maintenance">Under Maintenance</option>
-                <option value="Damaged">Damaged</option>
-                <option value="Archived">Archived</option>
               </select>
             </div>
           </div>

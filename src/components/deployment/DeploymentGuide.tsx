@@ -44,7 +44,7 @@ export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset })
   };
 
   const handleResetCatalog = async () => {
-    if (!window.confirm('Reset catalog back to ACLC Manila default laboratory units (40 COMLAB, 25 NETLAB, 20 TESDA)?')) {
+    if (!window.confirm('Reset catalog back to ACLC Manila default laboratory units (160 units across COMLAB, NETLAB, TESDA, MACLAB, CYBERLAB, IOTLAB)?')) {
       return;
     }
     try {
@@ -139,10 +139,10 @@ CLIENT_URL="https://aclc-pulse.vercel.app"`;
           <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-300 space-y-1">
             <div className="text-slate-600 font-bold">Covered Facilities</div>
             <div className="text-sm font-black text-slate-900">
-              COMLAB (40) · NETLAB (25) · TESDA (20)
+              6 Specialized Labs (160 Total Units)
             </div>
             <p className="text-[11px] text-slate-600 font-medium">
-              85 total hardware units under active pulse tracking.
+              COMLAB (40) · NETLAB (25) · TESDA (20) · MACLAB (30) · CYBERLAB (20) · IOTLAB (25)
             </p>
           </div>
         </div>

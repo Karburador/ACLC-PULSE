@@ -43,7 +43,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   onPrintTag,
   onAddNewAsset,
 }) => {
-  const categories = ['ALL', 'Equipment', 'Tools', 'Consumable Materials'];
+  const categories = ['ALL', 'Computers', 'Routers', 'Tools', 'Projectors', 'Peripherals', 'Consumables'];
   const statuses = ['ALL', 'Available', 'In Use', 'Under Maintenance', 'Damaged', 'Archived'];
 
   const getStatusDisplay = (status: AssetStatus) => {
@@ -91,6 +91,12 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
         return 'text-indigo-900 font-bold bg-indigo-100 border border-indigo-300 px-2 py-0.5 rounded';
       case 'TESDA':
         return 'text-amber-950 font-bold bg-amber-100 border border-amber-400 px-2 py-0.5 rounded';
+      case 'MACLAB':
+        return 'text-purple-900 font-bold bg-purple-100 border border-purple-300 px-2 py-0.5 rounded';
+      case 'CYBERLAB':
+        return 'text-emerald-900 font-bold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded';
+      case 'IOTLAB':
+        return 'text-teal-900 font-bold bg-teal-100 border border-teal-300 px-2 py-0.5 rounded';
       default:
         return 'text-slate-800 font-bold bg-slate-100 border border-slate-300 px-2 py-0.5 rounded';
     }

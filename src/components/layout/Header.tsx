@@ -83,10 +83,13 @@ export const Header: React.FC<HeaderProps> = ({
             className="bg-transparent text-xs sm:text-sm font-bold text-slate-900 focus:outline-none cursor-pointer pr-4 appearance-none truncate"
             aria-label="Filter laboratory context"
           >
-            <option value="ALL" className="bg-white text-slate-900">All Labs (85 Units)</option>
+            <option value="ALL" className="bg-white text-slate-900">All Labs (160 Units)</option>
             <option value="COMLAB" className="bg-white text-slate-900">COMLAB (40 Units)</option>
             <option value="NETLAB" className="bg-white text-slate-900">NETLAB (25 Units)</option>
             <option value="TESDA" className="bg-white text-slate-900">TESDA Hardware (20 Units)</option>
+            <option value="MACLAB" className="bg-white text-slate-900">MACLAB (30 Units)</option>
+            <option value="CYBERLAB" className="bg-white text-slate-900">CYBERLAB (20 Units)</option>
+            <option value="IOTLAB" className="bg-white text-slate-900">IOTLAB (25 Units)</option>
           </select>
           <ChevronDown className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-600 pointer-events-none absolute right-1.5 sm:right-2.5" />
         </div>

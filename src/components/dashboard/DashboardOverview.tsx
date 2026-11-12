@@ -103,15 +103,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               </div>
               <h1 className="text-xl sm:text-2xl font-bold font-kabel tracking-tight text-slate-950">
                 {currentLab === 'ALL'
-                  ? 'All Laboratory Facilities (85 Units Scope)'
+                  ? 'All Laboratory Facilities (160 Units Scope)'
                   : currentLab === 'COMLAB'
-                  ? 'COMLAB - Computer Laboratory (40 Units Scope)'
+                  ? 'COMLAB - Computer Programming Lab (40 Units Scope)'
                   : currentLab === 'NETLAB'
-                  ? 'NETLAB - Cisco Networking Laboratory (25 Units Scope)'
-                  : 'TESDA Hardware Servicing Laboratory (20 Units Scope)'}
+                  ? 'NETLAB - Cisco CCNA Networking Lab (25 Units Scope)'
+                  : currentLab === 'TESDA'
+                  ? 'TESDA - Hardware Servicing NC II Lab (20 Units Scope)'
+                  : currentLab === 'MACLAB'
+                  ? 'MACLAB - Multimedia & Graphics Design Lab (30 Units Scope)'
+                  : currentLab === 'CYBERLAB'
+                  ? 'CYBERLAB - Cybersecurity & Cloud Server Lab (20 Units Scope)'
+                  : 'IOTLAB - IoT, Robotics & Embedded Lab (25 Units Scope)'}
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl font-medium leading-relaxed">
-                Real-time asset tracking, dispensing and loan returns, storage cabinet visualization, and preventive maintenance for student and faculty equipment.
+                Real-time asset tracking, dispensing and loan returns, storage cabinet visualization, and preventive maintenance for student and faculty equipment across all 6 specialized facilities.
               </p>
             </div>
           </div>
@@ -155,9 +161,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         })}
       </div>
 
-      {/* Target Labs Capacity & Status Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* COMLAB Card */}
+      {/* Target Labs Capacity & Status Section (6 Laboratories) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* 1. COMLAB Card */}
         <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
@@ -187,7 +193,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
 
-        {/* NETLAB Card */}
+        {/* 2. NETLAB Card */}
         <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
@@ -196,7 +202,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900">NETLAB (Room 306)</h3>
-                <span className="text-xs text-slate-500 font-medium">Cisco Networking Academy</span>
+                <span className="text-xs text-slate-500 font-medium">Cisco CCNA Networking Lab</span>
               </div>
             </div>
             <span className="text-xs font-mono font-bold text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-300">
@@ -217,7 +223,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
 
-        {/* TESDA Hardware Lab Card */}
+        {/* 3. TESDA Hardware Lab Card */}
         <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
@@ -243,6 +249,96 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
             >
               Open Kanban <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
+
+        {/* 4. MACLAB Card */}
+        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-purple-100 text-purple-900 border border-purple-200">
+                <Boxes className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">MACLAB (Room 302)</h3>
+                <span className="text-xs text-slate-500 font-medium">Multimedia & Design Studio</span>
+              </div>
+            </div>
+            <span className="text-xs font-mono font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
+              30 Units
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+            Apple iMac 24" 4.5K Retina M3, Wacom Cintiq 16 Pro pen displays, ViewSonic 4K laser projector, and studio gear.
+          </p>
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
+            <span className="text-slate-600">Creative Production Ready</span>
+            <button
+              onClick={() => onNavigate('inventory')}
+              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
+
+        {/* 5. CYBERLAB Card */}
+        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200">
+                <ShieldAlert className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">CYBERLAB (Room 308)</h3>
+                <span className="text-xs text-slate-500 font-medium">Cybersecurity & Cloud Servers</span>
+              </div>
+            </div>
+            <span className="text-xs font-mono font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+              20 Units
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+            Dell PowerEdge R750 dual Xeon servers, Fortinet FortiGate firewalls, MikroTik 10G routers, and fiber diagnostics.
+          </p>
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
+            <span className="text-slate-600">Isolated Sandbox Network</span>
+            <button
+              onClick={() => onNavigate('inventory')}
+              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
+
+        {/* 6. IOTLAB Card */}
+        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-teal-100 text-teal-900 border border-teal-200">
+                <Server className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">IOTLAB (Room 204)</h3>
+                <span className="text-xs text-slate-500 font-medium">Robotics & Embedded Systems</span>
+              </div>
+            </div>
+            <span className="text-xs font-mono font-bold text-teal-900 bg-teal-100 px-2 py-0.5 rounded border border-teal-300">
+              25 Units
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+            Raspberry Pi 5 Developer Stations, Arduino Mega kits, Rigol digital oscilloscopes, and smart sensor kits.
+          </p>
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
+            <span className="text-slate-600">Hardware Prototyping Ready</span>
+            <button
+              onClick={() => onNavigate('inventory')}
+              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
         </div>

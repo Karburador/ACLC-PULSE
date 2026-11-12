@@ -32,9 +32,14 @@ export const getSystemHealth = async (_req: Request, res: Response) => {
         status: 'Operational',
         databaseMode: isAtlas ? 'MongoDB Atlas (Production)' : 'Local High-Speed Fallback (Preview/Offline Ready)',
         mongoUriConfigured: isValidMongoUri(process.env.MONGO_URI),
-        clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
-        labsManaged: ['COMLAB (40 units)', 'NETLAB (25 units)', 'TESDA Hardware Lab (20 units)'],
-        timestamp: new Date().toISOString(),
+        labsManaged: [
+          'COMLAB (40 units - Room 304)',
+          'NETLAB (25 units - Room 306)',
+          'TESDA Hardware Lab (20 units - Room 208)',
+          'MACLAB (30 units - Room 302)',
+          'CYBERLAB (20 units - Room 308)',
+          'IOTLAB (25 units - Room 204)',
+        ],
       },
     });
   } catch (error: any) {

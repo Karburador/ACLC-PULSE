@@ -3,8 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAsset extends Document {
   assetTag: string;
   name: string;
-  category: 'Tools' | 'Equipment' | 'Consumable Materials';
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA';
+  category: 'Computers' | 'Routers' | 'Tools' | 'Projectors' | 'Peripherals' | 'Consumables';
+  lab: 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
   status: 'Available' | 'In Use' | 'Under Maintenance' | 'Damaged' | 'Archived';
   quantity: number;
   availableQuantity: number;
@@ -28,12 +28,12 @@ const AssetSchema = new Schema<IAsset>(
     name: { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: ['Tools', 'Equipment', 'Consumable Materials'],
+      enum: ['Computers', 'Routers', 'Tools', 'Projectors', 'Peripherals', 'Consumables'],
       required: true,
     },
     lab: {
       type: String,
-      enum: ['COMLAB', 'NETLAB', 'TESDA'],
+      enum: ['COMLAB', 'NETLAB', 'TESDA', 'MACLAB', 'CYBERLAB', 'IOTLAB'],
       required: true,
     },
     status: {

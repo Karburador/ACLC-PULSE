@@ -1,16 +1,24 @@
-export type LabType = 'ALL' | 'COMLAB' | 'NETLAB' | 'TESDA';
+export type LabFacility = 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
 
-export type AssetCategory = 'Tools' | 'Equipment' | 'Consumable Materials';
+export type LabType = 'ALL' | LabFacility;
+
+export type AssetCategory =
+  | 'Computers'
+  | 'Routers'
+  | 'Tools'
+  | 'Projectors'
+  | 'Peripherals'
+  | 'Consumables';
 
 export type AssetStatus = 'Available' | 'In Use' | 'Under Maintenance' | 'Damaged' | 'Archived';
 
 export interface Asset {
   id: string;
   _id?: string;
-  assetTag: string; // e.g., ACLC-COM-001
+  assetTag: string; // e.g., ACLC-COM-001, ACLC-MAC-001
   name: string;
   category: AssetCategory;
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA';
+  lab: LabFacility;
   status: AssetStatus;
   quantity: number;
   availableQuantity: number;
@@ -36,11 +44,11 @@ export interface LoanRecord {
   borrowerName: string;
   borrowerIdNumber: string; // Student or Faculty ID
   borrowerRole: 'Student' | 'Faculty' | 'Staff' | 'TESDA Scholar';
-  departmentSection: string; // e.g. BSCS-3A, ACT-2B, TVET-CSS
+  departmentSection: string; // e.g. BSCS-3A, ACT-2B, TVET-CSS, BSIT-4B
   assetId: string;
   assetTag: string;
   assetName: string;
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA';
+  lab: LabFacility;
   quantity: number;
   dateBorrowed: string;
   expectedReturnDate: string;
@@ -59,7 +67,7 @@ export interface MaintenanceTask {
   title: string;
   assetId?: string;
   assetTag?: string;
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA';
+  lab: LabFacility;
   type: 'Routine Preventive' | 'PC Re-imaging' | 'Network Audit' | 'Hardware Repair' | 'Safety Inspection';
   column: KanbanColumn;
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
@@ -72,8 +80,9 @@ export interface MaintenanceTask {
 }
 
 export interface LabStorageLayout {
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA';
+  lab: LabFacility;
   name: string;
+  roomNumber: string;
   totalCapacityUnits: number;
   activeUnitsCount: number;
   cabinets: {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MaintenanceTask, KanbanColumn, LabType, Asset } from '../../types';
+import { MaintenanceTask, KanbanColumn, LabType, LabFacility, Asset } from '../../types';
 import {
   Wrench,
   Plus,
@@ -30,7 +30,7 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
-  const [newTaskLab, setNewTaskLab] = useState<'COMLAB' | 'NETLAB' | 'TESDA'>(
+  const [newTaskLab, setNewTaskLab] = useState<LabFacility>(
     currentLab === 'ALL' ? 'COMLAB' : currentLab
   );
   const [newTaskType, setNewTaskType] = useState<MaintenanceTask['type']>('Hardware Repair');
@@ -286,12 +286,15 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
                   </label>
                   <select
                     value={newTaskLab}
-                    onChange={(e) => setNewTaskLab(e.target.value as any)}
+                    onChange={(e) => setNewTaskLab(e.target.value as LabFacility)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer font-medium"
                   >
                     <option value="COMLAB">COMLAB (40 Units)</option>
                     <option value="NETLAB">NETLAB (25 Units)</option>
                     <option value="TESDA">TESDA Hardware Lab (20 Units)</option>
+                    <option value="MACLAB">MACLAB (30 Units)</option>
+                    <option value="CYBERLAB">CYBERLAB (20 Units)</option>
+                    <option value="IOTLAB">IOTLAB (25 Units)</option>
                   </select>
                 </div>
 

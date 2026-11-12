@@ -141,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Target Labs
           </span>
           <span className="text-[11px] text-blue-800 font-mono font-extrabold bg-blue-100 px-1.5 py-0.2 rounded">
-            85 Total Units
+            160 Total Units
           </span>
         </div>
         <div className="space-y-1.5 text-[11px] text-slate-700">
@@ -154,8 +154,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="font-mono font-bold text-slate-900">25 units</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="font-medium">TESDA Hardware (Room 208)</span>
+            <span className="font-medium">TESDA (Room 208)</span>
             <span className="font-mono font-bold text-slate-900">20 units</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="font-medium">MACLAB (Room 302)</span>
+            <span className="font-mono font-bold text-slate-900">30 units</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="font-medium">CYBERLAB (Room 308)</span>
+            <span className="font-mono font-bold text-slate-900">20 units</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="font-medium">IOTLAB (Room 204)</span>
+            <span className="font-mono font-bold text-slate-900">25 units</span>
           </div>
         </div>
       </div>

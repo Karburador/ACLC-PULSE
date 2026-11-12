@@ -8,7 +8,7 @@ export interface ILoan extends Document {
   assetId: string;
   assetTag: string;
   assetName: string;
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA';
+  lab: 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
   quantity: number;
   dateBorrowed: string;
   expectedReturnDate: string;
@@ -34,7 +34,7 @@ const LoanSchema = new Schema<ILoan>(
     assetName: { type: String, required: true },
     lab: {
       type: String,
-      enum: ['COMLAB', 'NETLAB', 'TESDA'],
+      enum: ['COMLAB', 'NETLAB', 'TESDA', 'MACLAB', 'CYBERLAB', 'IOTLAB'],
       required: true,
     },
     quantity: { type: Number, required: true, min: 1 },

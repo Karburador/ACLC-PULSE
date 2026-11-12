@@ -69,6 +69,36 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
       itemsCount: 'All Workbenches 1-10',
       icon: ShieldCheck,
     },
+    {
+      lab: 'MACLAB',
+      title: 'macOS Sonoma Color Calibration & Creative Cloud Sync',
+      frequency: 'Bi-Weekly Cycle',
+      nextDue: '2026-11-25',
+      type: 'Routine Preventive',
+      technician: 'Tech. Alan Villanueva',
+      itemsCount: '20 Apple iMac M3 & Cintiq Pro Displays',
+      icon: HardDrive,
+    },
+    {
+      lab: 'CYBERLAB',
+      title: 'Enterprise Server Hypervisor & Firewall Log Audit',
+      frequency: 'Weekly Security Sweep',
+      nextDue: '2026-11-19',
+      type: 'Network Audit',
+      technician: 'Engr. Michael Santos',
+      itemsCount: 'Dell PowerEdge R750 & FortiGate Firewalls',
+      icon: Network,
+    },
+    {
+      lab: 'IOTLAB',
+      title: 'Oscilloscope Calibration & GPIO Bench Voltage Verification',
+      frequency: 'Monthly Inspection',
+      nextDue: '2026-11-28',
+      type: 'Routine Preventive',
+      technician: 'Tech. Dennis Ocampo',
+      itemsCount: '15 Rigol Scopes & Raspberry Pi 5 Benches',
+      icon: Cpu,
+    },
   ];
 
   const filteredRoutines = currentLab === 'ALL'

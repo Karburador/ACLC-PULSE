@@ -39,14 +39,14 @@ export default function App() {
   const [loans, setLoans] = useState<LoanRecord[]>(INITIAL_LOANS);
   const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(INITIAL_MAINTENANCE);
   const [metrics, setMetrics] = useState({
-    totalAssets: 656,
-    availableAssets: 623,
+    totalAssets: 773,
+    availableAssets: 728,
     inUseAssets: 1,
     damagedAssets: 6,
     activeLoans: 3,
     overdueLoans: 2,
     pendingMaintenance: 3,
-    totalAssetItemsCount: 15,
+    totalAssetItemsCount: 23,
     isAtlasConnected: false,
   });
 

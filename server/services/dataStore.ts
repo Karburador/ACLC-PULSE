@@ -8,12 +8,12 @@ import { MaintenanceModel, IMaintenance } from '../models/Maintenance.js';
 // - NETLAB: 25 Networking racks, routers & switches
 // - TESDA Hardware Lab: 20 Hardware maintenance & testing units
 export const INITIAL_ASSETS = [
-  // COMLAB Assets (Computer Laboratory)
+  // 1. COMLAB (Room 304 - 40 Units)
   {
     id: 'asset-com-01',
-    assetTag: 'ACLC-COM-WS01',
+    assetTag: 'ACLC-COM-PC01',
     name: 'Dell OptiPlex 7090 Desktop Workstation',
-    category: 'Equipment',
+    category: 'Computers',
     lab: 'COMLAB',
     status: 'Available',
     quantity: 40,
@@ -33,30 +33,9 @@ export const INITIAL_ASSETS = [
   },
   {
     id: 'asset-com-02',
-    assetTag: 'ACLC-COM-MON01',
-    name: 'Dell 24" UltraSharp FHD Monitor',
-    category: 'Equipment',
-    lab: 'COMLAB',
-    status: 'Available',
-    quantity: 40,
-    availableQuantity: 38,
-    unit: 'units',
-    serialNumber: 'SN-MN-2419-040',
-    brandModel: 'Dell U2419H IPS',
-    specs: '1080p 60Hz, 99% sRGB, Height & Pivot Adjustable Stand',
-    storageLocation: {
-      rackOrCabinet: 'Row A-D Stations',
-      shelf: 'Display Arms',
-      slot: 'Per Station',
-    },
-    acquisitionDate: '2024-06-15',
-    lastMaintained: '2026-09-20',
-  },
-  {
-    id: 'asset-com-03',
     assetTag: 'ACLC-COM-PROJ01',
-    name: 'Epson EB-FH52 4000-Lumen Projector',
-    category: 'Equipment',
+    name: 'Epson EB-FH52 4000-Lumen 1080p Projector',
+    category: 'Projectors',
     lab: 'COMLAB',
     status: 'In Use',
     quantity: 2,
@@ -68,11 +47,32 @@ export const INITIAL_ASSETS = [
     storageLocation: {
       rackOrCabinet: 'Cabinet COM-A',
       shelf: 'Shelf 1 (AV Gear)',
-      slot: 'Rack 1',
+      slot: 'Ceiling & Backup',
     },
     acquisitionDate: '2023-11-10',
     lastMaintained: '2026-10-05',
-    notes: 'Ceiling mount + backup portable unit.',
+    notes: 'Ceiling mount + backup portable instructor unit.',
+  },
+  {
+    id: 'asset-com-03',
+    assetTag: 'ACLC-COM-MON01',
+    name: 'Dell 24" UltraSharp FHD IPS Monitor',
+    category: 'Peripherals',
+    lab: 'COMLAB',
+    status: 'Available',
+    quantity: 40,
+    availableQuantity: 38,
+    unit: 'units',
+    serialNumber: 'SN-MN-2419-040',
+    brandModel: 'Dell U2419H IPS',
+    specs: '1080p 60Hz, 99% sRGB, Height & Pivot Adjustable Stand, HDMI/DP',
+    storageLocation: {
+      rackOrCabinet: 'Row A-D Stations',
+      shelf: 'Display Arms',
+      slot: 'Per Station',
+    },
+    acquisitionDate: '2024-06-15',
+    lastMaintained: '2026-09-20',
   },
   {
     id: 'asset-com-04',
@@ -85,7 +85,7 @@ export const INITIAL_ASSETS = [
     availableQuantity: 10,
     unit: 'pcs',
     serialNumber: 'TL-CRIMP-012',
-    brandModel: 'Pro\'sKit CP-376TR',
+    brandModel: "Pro'sKit CP-376TR",
     specs: 'Ratchet mechanism, integrated cable stripper and cutter',
     storageLocation: {
       rackOrCabinet: 'Cabinet COM-B',
@@ -99,7 +99,7 @@ export const INITIAL_ASSETS = [
     id: 'asset-com-05',
     assetTag: 'ACLC-COM-RJ45',
     name: 'Cat6 Unshielded RJ45 Modular Plugs',
-    category: 'Consumable Materials',
+    category: 'Consumables',
     lab: 'COMLAB',
     status: 'Available',
     quantity: 450,
@@ -115,12 +115,12 @@ export const INITIAL_ASSETS = [
     acquisitionDate: '2026-02-10',
   },
 
-  // NETLAB Assets (Networking Laboratory - 25 Units Scope)
+  // 2. NETLAB (Room 306 - 25 Units)
   {
     id: 'asset-net-01',
     assetTag: 'ACLC-NET-RTR01',
     name: 'Cisco 2911 Integrated Services Router',
-    category: 'Equipment',
+    category: 'Routers',
     lab: 'NETLAB',
     status: 'Available',
     quantity: 10,
@@ -141,8 +141,8 @@ export const INITIAL_ASSETS = [
   {
     id: 'asset-net-02',
     assetTag: 'ACLC-NET-SW01',
-    name: 'Cisco Catalyst 2960-X 24-Port Switch',
-    category: 'Equipment',
+    name: 'Cisco Catalyst 2960-X 24-Port Managed Switch',
+    category: 'Routers',
     lab: 'NETLAB',
     status: 'Available',
     quantity: 15,
@@ -179,13 +179,12 @@ export const INITIAL_ASSETS = [
     },
     acquisitionDate: '2024-04-18',
     lastMaintained: '2026-09-02',
-    notes: 'Precision test instrument. Handled only with supervisor sign-off.',
   },
   {
     id: 'asset-net-04',
     assetTag: 'ACLC-NET-CAB-UTP',
     name: 'Cat6 UTP Solid Pure Copper Cable Reel',
-    category: 'Consumable Materials',
+    category: 'Consumables',
     lab: 'NETLAB',
     status: 'Available',
     quantity: 5,
@@ -202,32 +201,32 @@ export const INITIAL_ASSETS = [
   },
   {
     id: 'asset-net-05',
-    assetTag: 'ACLC-NET-PATCH01',
-    name: '24-Port Cat6 1U Loaded Patch Panel',
-    category: 'Equipment',
+    assetTag: 'ACLC-NET-PROJ01',
+    name: 'BenQ MW560 WXGA Network Classroom Projector',
+    category: 'Projectors',
     lab: 'NETLAB',
-    status: 'Under Maintenance',
-    quantity: 6,
-    availableQuantity: 5,
+    status: 'Available',
+    quantity: 1,
+    availableQuantity: 1,
     unit: 'units',
-    serialNumber: 'PP-24-CAT6-004',
-    brandModel: 'D-Link 24-Port 1U',
-    specs: '110/Krone punch-down block, T568A/B color coding',
+    serialNumber: 'BQ-MW560-8819',
+    brandModel: 'BenQ MW560',
+    specs: '4000 ANSI Lumens, 20,000:1 Contrast, Dual HDMI, SmartEco Mode',
     storageLocation: {
-      rackOrCabinet: 'Server Rack 3',
-      shelf: 'RU 08',
-      slot: 'Main Frame',
+      rackOrCabinet: 'NETLAB Podium',
+      shelf: 'Top Rack',
+      slot: 'Mount A',
     },
-    acquisitionDate: '2024-02-11',
-    lastMaintained: '2026-10-30',
+    acquisitionDate: '2024-05-19',
+    lastMaintained: '2026-08-20',
   },
 
-  // TESDA Hardware Lab Assets (20 Units Scope - Computer Systems Servicing NC II)
+  // 3. TESDA Hardware Lab (Room 208 - 20 Units)
   {
     id: 'asset-tes-01',
     assetTag: 'ACLC-TES-TB01',
-    name: 'Modular Hardware Assembly & Bench Test Bed',
-    category: 'Equipment',
+    name: 'Modular Hardware Assembly Bench Testbed Rig',
+    category: 'Computers',
     lab: 'TESDA',
     status: 'Available',
     quantity: 20,
@@ -291,7 +290,7 @@ export const INITIAL_ASSETS = [
     id: 'asset-tes-04',
     assetTag: 'ACLC-TES-PASTE01',
     name: 'Arctic MX-4 High-Performance Thermal Compound',
-    category: 'Consumable Materials',
+    category: 'Consumables',
     lab: 'TESDA',
     status: 'Available',
     quantity: 24,
@@ -306,27 +305,198 @@ export const INITIAL_ASSETS = [
     },
     acquisitionDate: '2026-01-20',
   },
+
+  // 4. MACLAB (Room 302 - 30 Units)
   {
-    id: 'asset-tes-05',
-    assetTag: 'ACLC-TES-PSUTEST01',
-    name: 'Digital LCD ATX Power Supply Tester 24-Pin',
-    category: 'Tools',
-    lab: 'TESDA',
-    status: 'Damaged',
-    quantity: 6,
-    availableQuantity: 4,
-    unit: 'pcs',
-    serialNumber: 'PSU-TST-006',
-    brandModel: 'Thermaltake Dr. Power II',
-    specs: 'Tests +12V, -12V, +5V, +5VSB, +3.3V rails with PG alarm display',
+    id: 'asset-mac-01',
+    assetTag: 'ACLC-MAC-IMAC01',
+    name: 'Apple 24" iMac Retina 4.5K M3 Workstation',
+    category: 'Computers',
+    lab: 'MACLAB',
+    status: 'Available',
+    quantity: 30,
+    availableQuantity: 28,
+    unit: 'units',
+    serialNumber: 'C02GK990Q05P',
+    brandModel: 'Apple iMac 24" M3 Chip',
+    specs: 'Apple M3 8-Core CPU / 10-Core GPU, 16GB Unified Memory, 512GB SSD, 4.5K Retina',
     storageLocation: {
-      rackOrCabinet: 'Cabinet TESDA-Tools',
-      shelf: 'Shelf 3 (Diagnostic Testers)',
-      slot: 'Bin D-02',
+      rackOrCabinet: 'Design Pods 1-6',
+      shelf: 'Desks 01-30',
+      slot: 'Station Mount',
     },
-    acquisitionDate: '2024-05-10',
-    lastMaintained: '2026-08-01',
-    notes: 'Unit #3 reporting faulty backlight; queued for technician diagnosis.',
+    acquisitionDate: '2024-11-15',
+    lastMaintained: '2026-10-25',
+  },
+  {
+    id: 'asset-mac-02',
+    assetTag: 'ACLC-MAC-TAB01',
+    name: 'Wacom Intuos Pro Medium Graphic Tablet',
+    category: 'Peripherals',
+    lab: 'MACLAB',
+    status: 'Available',
+    quantity: 25,
+    availableQuantity: 22,
+    unit: 'units',
+    serialNumber: 'WCM-PTH660-8491',
+    brandModel: 'Wacom Intuos Pro PTH-660',
+    specs: '8192 levels pen pressure, multi-touch gesture support, Bluetooth & USB-C',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet MAC-A',
+      shelf: 'Shelf 2 (Drawing Peripherals)',
+      slot: 'Locker 1-4',
+    },
+    acquisitionDate: '2025-02-01',
+    lastMaintained: '2026-09-10',
+  },
+  {
+    id: 'asset-mac-03',
+    assetTag: 'ACLC-MAC-PROJ01',
+    name: 'ViewSonic 4K UHD Short-Throw Laser Projector',
+    category: 'Projectors',
+    lab: 'MACLAB',
+    status: 'Available',
+    quantity: 1,
+    availableQuantity: 1,
+    unit: 'units',
+    serialNumber: 'VS-LS830-4K-01',
+    brandModel: 'ViewSonic LS830',
+    specs: '4K UHD, 4500 ANSI Lumens, 0.23 Ultra-Short Throw ratio',
+    storageLocation: {
+      rackOrCabinet: 'MACLAB Presentation Wall',
+      shelf: 'Ceiling Bracket',
+      slot: 'Main Center',
+    },
+    acquisitionDate: '2024-12-01',
+    lastMaintained: '2026-10-10',
+  },
+
+  // 5. CYBERLAB (Room 308 - 20 Units)
+  {
+    id: 'asset-cyb-01',
+    assetTag: 'ACLC-CYB-SRV01',
+    name: 'Dell PowerEdge R740 2U Enterprise Rack Server',
+    category: 'Computers',
+    lab: 'CYBERLAB',
+    status: 'Available',
+    quantity: 6,
+    availableQuantity: 5,
+    unit: 'units',
+    serialNumber: 'SVC-TAG-89XN042',
+    brandModel: 'Dell PowerEdge R740',
+    specs: 'Dual Intel Xeon Silver 4214R, 128GB ECC DDR4, 4x 1.92TB SAS SSD RAID-10',
+    storageLocation: {
+      rackOrCabinet: 'Enterprise Server Rack Alpha',
+      shelf: 'Rack Units 18-30',
+      slot: 'Chassis 1-6',
+    },
+    acquisitionDate: '2024-03-20',
+    lastMaintained: '2026-10-15',
+  },
+  {
+    id: 'asset-cyb-02',
+    assetTag: 'ACLC-CYB-FW01',
+    name: 'Fortinet FortiGate 60F Enterprise Firewall',
+    category: 'Routers',
+    lab: 'CYBERLAB',
+    status: 'Available',
+    quantity: 4,
+    availableQuantity: 4,
+    unit: 'units',
+    serialNumber: 'FGT60FTK2104819',
+    brandModel: 'Fortinet FortiGate 60F',
+    specs: 'SOC4 hardware acceleration, 10x GE RJ45, 1.4 Gbps IPS throughput',
+    storageLocation: {
+      rackOrCabinet: 'Enterprise Server Rack Alpha',
+      shelf: 'Rack Unit 12',
+      slot: 'Perimeter Bay',
+    },
+    acquisitionDate: '2024-07-11',
+    lastMaintained: '2026-09-25',
+  },
+  {
+    id: 'asset-cyb-03',
+    assetTag: 'ACLC-CYB-MIKRO01',
+    name: 'MikroTik CCR2004 16-Port 10G Cloud Core Router',
+    category: 'Routers',
+    lab: 'CYBERLAB',
+    status: 'Available',
+    quantity: 4,
+    availableQuantity: 3,
+    unit: 'units',
+    serialNumber: 'MT-CCR2004-940',
+    brandModel: 'MikroTik CCR2004-1G-12S+2XS',
+    specs: 'Quad-Core AL32400 1.7GHz, 4GB RAM, 12x 10G SFP+ ports, 2x 25G SFP28 ports',
+    storageLocation: {
+      rackOrCabinet: 'Enterprise Server Rack Beta',
+      shelf: 'Rack Unit 08',
+      slot: 'Core Routing',
+    },
+    acquisitionDate: '2025-01-10',
+    lastMaintained: '2026-10-02',
+  },
+
+  // 6. IOTLAB (Room 204 - 25 Units)
+  {
+    id: 'asset-iot-01',
+    assetTag: 'ACLC-IOT-RIG01',
+    name: 'HP ProDesk Mini Core i5 Embedded Test Station',
+    category: 'Computers',
+    lab: 'IOTLAB',
+    status: 'Available',
+    quantity: 15,
+    availableQuantity: 14,
+    unit: 'units',
+    serialNumber: 'HP-PD600-9382',
+    brandModel: 'HP ProDesk 600 G6 Mini',
+    specs: 'Intel Core i5-10500T, 16GB RAM, 256GB SSD, Serial RS-232, GPIO Expansion',
+    storageLocation: {
+      rackOrCabinet: 'Robotics Island 1-3',
+      shelf: 'Workbench Stations',
+      slot: 'Vesa Mount',
+    },
+    acquisitionDate: '2025-03-01',
+    lastMaintained: '2026-09-30',
+  },
+  {
+    id: 'asset-iot-02',
+    assetTag: 'ACLC-IOT-OSC01',
+    name: 'Rigol DS1054Z 50MHz 4-Channel Digital Oscilloscope',
+    category: 'Tools',
+    lab: 'IOTLAB',
+    status: 'Available',
+    quantity: 8,
+    availableQuantity: 6,
+    unit: 'units',
+    serialNumber: 'RGL-DS1054Z-2849',
+    brandModel: 'Rigol DS1054Z',
+    specs: '50 MHz Bandwidth, 4 Analog Channels, 1 GSa/s Real-time Sample Rate',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet IOT-TestGear',
+      shelf: 'Shelf 1 (Measurement Benches)',
+      slot: 'Unit 1-8',
+    },
+    acquisitionDate: '2025-04-12',
+    lastMaintained: '2026-08-15',
+  },
+  {
+    id: 'asset-iot-03',
+    assetTag: 'ACLC-IOT-KIT01',
+    name: 'Advanced Arduino & ESP32 IoT Sensor Starter Kit',
+    category: 'Consumables',
+    lab: 'IOTLAB',
+    status: 'Available',
+    quantity: 35,
+    availableQuantity: 30,
+    unit: 'kits',
+    brandModel: 'Elegoo & Espressif IoT Master Kit',
+    specs: 'ESP32 Wi-Fi/BT Dev Board, 37 sensor modules (ultrasonic, temperature, PIR, OLED)',
+    storageLocation: {
+      rackOrCabinet: 'Cabinet IOT-Kits',
+      shelf: 'Shelf 2 & 3',
+      slot: 'Bin 01-35',
+    },
+    acquisitionDate: '2026-01-05',
   },
 ];
 
@@ -547,9 +717,74 @@ export const LAB_STORAGE_LAYOUTS = [
         name: 'Cabinet TESDA-Consumables (Supplies & Thermal Paste)',
         description: 'Vented storage for thermal paste, flux pens, solder wick, and isopropyl alcohol',
         shelves: [
-          { id: 'tes-c-s1', label: 'Shelf 1: Arctic MX-4 Thermal Compounds', assignedCategory: 'Consumable Materials' },
-          { id: 'tes-c-s2', label: 'Shelf 2: Lead-Free 60/40 Solder Wire Spools', assignedCategory: 'Consumable Materials' },
-          { id: 'tes-c-s3', label: 'Shelf 3: Thermal Pads & Heat-Shrink Tubing', assignedCategory: 'Consumable Materials' },
+          { id: 'tes-c-s1', label: 'Shelf 1: Arctic MX-4 Thermal Compounds', assignedCategory: 'Consumables' },
+          { id: 'tes-c-s2', label: 'Shelf 2: Lead-Free 60/40 Solder Wire Spools', assignedCategory: 'Consumables' },
+          { id: 'tes-c-s3', label: 'Shelf 3: Thermal Pads & Heat-Shrink Tubing', assignedCategory: 'Consumables' },
+        ],
+      },
+    ],
+  },
+  {
+    lab: 'MACLAB',
+    name: 'Multimedia & Animation Laboratory (Room 302)',
+    roomNumber: 'Room 302',
+    totalCapacityUnits: 30,
+    activeUnitsCount: 30,
+    cabinets: [
+      {
+        id: 'cab-mac-workstations',
+        name: 'Design Pods 1-6 (Creative Workstations)',
+        description: 'Ergonomic pods equipped with Apple 24" iMac M3 Retina displays and drawing tablets',
+        shelves: [
+          { id: 'mac-w-s1', label: 'Pods 1-3: 3D Modeling & Animation Stations', assignedCategory: 'Computers' },
+          { id: 'mac-w-s2', label: 'Pods 4-6: Video Rendering & Audio Suite', assignedCategory: 'Computers' },
+          { id: 'mac-w-s3', label: 'Peripheral Locker: Wacom Intuos Pro Tablets', assignedCategory: 'Peripherals' },
+        ],
+      },
+      {
+        id: 'cab-mac-av',
+        name: 'MACLAB Presentation Wall & Screening',
+        description: 'High-definition 4K laser projector and calibrated color grading monitors',
+        shelves: [
+          { id: 'mac-av-s1', label: 'Ceiling Bracket: ViewSonic 4K Laser Projector', assignedCategory: 'Projectors' },
+        ],
+      },
+    ],
+  },
+  {
+    lab: 'CYBERLAB',
+    name: 'Cybersecurity, Cloud & Server Operations Lab (Room 308)',
+    roomNumber: 'Room 308',
+    totalCapacityUnits: 20,
+    activeUnitsCount: 20,
+    cabinets: [
+      {
+        id: 'rack-cyber-alpha',
+        name: 'Enterprise Server Rack Alpha (Isolated Network)',
+        description: 'Air-conditioned server rack for virtualization nodes, firewalls, and core switches',
+        shelves: [
+          { id: 'cyb-r1-s1', label: 'RU 18-30: Dell PowerEdge R740 Proxmox Servers', assignedCategory: 'Computers' },
+          { id: 'cyb-r1-s2', label: 'RU 12-16: Fortinet FortiGate 60F Firewalls', assignedCategory: 'Routers' },
+          { id: 'cyb-r1-s3', label: 'RU 06-10: MikroTik 10G Cloud Core Routers', assignedCategory: 'Routers' },
+        ],
+      },
+    ],
+  },
+  {
+    lab: 'IOTLAB',
+    name: 'IoT, Robotics & Embedded Systems Lab (Room 204)',
+    roomNumber: 'Room 204',
+    totalCapacityUnits: 25,
+    activeUnitsCount: 25,
+    cabinets: [
+      {
+        id: 'cab-iot-benches',
+        name: 'Robotics Island & Workbenches',
+        description: 'ESD-safe assembly benches with embedded mini PCs, oscilloscopes, and sensor modules',
+        shelves: [
+          { id: 'iot-b-s1', label: 'Stations 1-15: HP ProDesk Mini Embedded Testing PCs', assignedCategory: 'Computers' },
+          { id: 'iot-b-s2', label: 'Measurement Shelf: Rigol 50MHz Digital Oscilloscopes', assignedCategory: 'Tools' },
+          { id: 'iot-b-s3', label: 'Bins 01-35: Arduino & ESP32 Sensor Starter Kits', assignedCategory: 'Consumables' },
         ],
       },
     ],
@@ -626,9 +861,9 @@ export async function initDatabaseConnection(): Promise<{ connected: boolean; me
     // Seed database if empty
     const count = await AssetModel.countDocuments();
     if (count === 0) {
-      await AssetModel.insertMany(INITIAL_ASSETS);
-      await LoanModel.insertMany(INITIAL_LOANS);
-      await MaintenanceModel.insertMany(INITIAL_MAINTENANCE);
+      await (AssetModel as any).insertMany(INITIAL_ASSETS);
+      await (LoanModel as any).insertMany(INITIAL_LOANS);
+      await (MaintenanceModel as any).insertMany(INITIAL_MAINTENANCE);
     }
 
     return { connected: true, message: 'Successfully connected and verified MongoDB Atlas instance.' };
@@ -684,10 +919,10 @@ export const DataStore = {
   async getAssetById(id: string) {
     if (isMongoConnected) {
       try {
-        const doc = await AssetModel.findById(id).lean();
+        const doc = await (AssetModel as any).findById(id).lean();
         if (doc) return { ...doc, id: doc._id.toString() };
       } catch {
-        const byTag = await AssetModel.findOne({ assetTag: id }).lean();
+        const byTag = await (AssetModel as any).findOne({ assetTag: id }).lean();
         if (byTag) return { ...byTag, id: byTag._id.toString() };
       }
     }
@@ -721,7 +956,7 @@ export const DataStore = {
   async updateAsset(id: string, updates: any) {
     if (isMongoConnected) {
       try {
-        const updated = await AssetModel.findByIdAndUpdate(id, updates, { new: true }).lean();
+        const updated = await (AssetModel as any).findByIdAndUpdate(id, updates, { new: true }).lean();
         if (updated) return { ...updated, id: updated._id.toString() };
       } catch {}
     }
@@ -737,7 +972,7 @@ export const DataStore = {
   async deleteAsset(id: string) {
     if (isMongoConnected) {
       try {
-        await AssetModel.findByIdAndDelete(id);
+        await (AssetModel as any).findByIdAndDelete(id);
         return true;
       } catch {}
     }
@@ -820,7 +1055,7 @@ export const DataStore = {
     let loanRecord: any = null;
 
     if (isMongoConnected) {
-      loanRecord = await LoanModel.findById(id);
+      loanRecord = await (LoanModel as any).findById(id);
       if (loanRecord) {
         loanRecord.status = 'Returned';
         loanRecord.dateReturned = today;
@@ -901,7 +1136,7 @@ export const DataStore = {
   async updateMaintenanceTask(id: string, updates: any) {
     if (isMongoConnected) {
       try {
-        const updated = await MaintenanceModel.findByIdAndUpdate(id, updates, { new: true }).lean();
+        const updated = await (MaintenanceModel as any).findByIdAndUpdate(id, updates, { new: true }).lean();
         if (updated) return { ...updated, id: updated._id.toString() };
       } catch {}
     }
@@ -921,7 +1156,7 @@ export const DataStore = {
   async deleteMaintenanceTask(id: string) {
     if (isMongoConnected) {
       try {
-        await MaintenanceModel.findByIdAndDelete(id);
+        await (MaintenanceModel as any).findByIdAndDelete(id);
         return true;
       } catch {}
     }
