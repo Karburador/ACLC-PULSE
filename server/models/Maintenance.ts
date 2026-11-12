@@ -4,7 +4,7 @@ export interface IMaintenance extends Document {
   title: string;
   assetId?: string;
   assetTag?: string;
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
+  lab: string;
   type: 'Routine Preventive' | 'PC Re-imaging' | 'Network Audit' | 'Hardware Repair' | 'Safety Inspection';
   column: 'Reported' | 'Diagnosed' | 'Under Repair' | 'Replaced/Retired';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
@@ -23,8 +23,9 @@ const MaintenanceSchema = new Schema<IMaintenance>(
     assetTag: { type: String },
     lab: {
       type: String,
-      enum: ['COMLAB', 'NETLAB', 'TESDA', 'MACLAB', 'CYBERLAB', 'IOTLAB'],
       required: true,
+      uppercase: true,
+      trim: true,
     },
     type: {
       type: String,

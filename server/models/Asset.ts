@@ -4,7 +4,7 @@ export interface IAsset extends Document {
   assetTag: string;
   name: string;
   category: 'Computers' | 'Routers' | 'Tools' | 'Projectors' | 'Peripherals' | 'Consumables';
-  lab: 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
+  lab: string;
   status: 'Available' | 'In Use' | 'Under Maintenance' | 'Damaged' | 'Archived';
   quantity: number;
   availableQuantity: number;
@@ -33,8 +33,9 @@ const AssetSchema = new Schema<IAsset>(
     },
     lab: {
       type: String,
-      enum: ['COMLAB', 'NETLAB', 'TESDA', 'MACLAB', 'CYBERLAB', 'IOTLAB'],
       required: true,
+      uppercase: true,
+      trim: true,
     },
     status: {
       type: String,

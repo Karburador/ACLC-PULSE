@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { LabType, Asset, LoanRecord, MaintenanceTask } from './types';
+import { LabType, Asset, LoanRecord, MaintenanceTask, Laboratory } from './types';
 import { api } from './services/api';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavigationTab, MobileBottomNav } from './components/layout/Sidebar';
@@ -14,6 +14,8 @@ import { RepairKanban } from './components/maintenance/RepairKanban';
 import { MaintenanceScheduler } from './components/maintenance/MaintenanceScheduler';
 import { ReportsView } from './components/reports/ReportsView';
 import { DeploymentGuide } from './components/deployment/DeploymentGuide';
+import { LaboratoryModal } from './components/laboratories/LaboratoryModal';
+import { ResetModal } from './components/common/ResetModal';
 import {
   INITIAL_ASSETS,
   INITIAL_LOANS,
@@ -30,6 +32,15 @@ import {
   X,
 } from 'lucide-react';
 
+const DEFAULT_LABS: Laboratory[] = [
+  { code: 'COMLAB', name: 'Computer Programming & Applications Lab', roomNumber: 'Room 304', capacity: 40, isCustom: false },
+  { code: 'NETLAB', name: 'Cisco CCNA Networking Lab', roomNumber: 'Room 306', capacity: 25, isCustom: false },
+  { code: 'TESDA', name: 'Computer Systems Servicing (CSS NC II) Hardware Lab', roomNumber: 'Room 208', capacity: 20, isCustom: false },
+  { code: 'MACLAB', name: 'Multimedia & Graphic Design Studio', roomNumber: 'Room 302', capacity: 30, isCustom: false },
+  { code: 'CYBERLAB', name: 'Cybersecurity, Cloud & Server Operations Lab', roomNumber: 'Room 308', capacity: 20, isCustom: false },
+  { code: 'IOTLAB', name: 'IoT, Robotics & Embedded Systems Lab', roomNumber: 'Room 204', capacity: 25, isCustom: false },
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [currentLab, setCurrentLab] = useState<LabType>('ALL');
@@ -38,6 +49,7 @@ export default function App() {
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
   const [loans, setLoans] = useState<LoanRecord[]>(INITIAL_LOANS);
   const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(INITIAL_MAINTENANCE);
+  const [laboratories, setLaboratories] = useState<Laboratory[]>(DEFAULT_LABS);
   const [metrics, setMetrics] = useState({
     totalAssets: 773,
     availableAssets: 728,
@@ -65,6 +77,10 @@ export default function App() {
   const [isBorrowModalOpen, setIsBorrowModalOpen] = useState(false);
   const [preselectedBorrowAsset, setPreselectedBorrowAsset] = useState<Asset | null>(null);
 
+  const [isLabModalOpen, setIsLabModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const [preselectedTagAsset, setPreselectedTagAsset] = useState<Asset | null>(null);
   const [storageSubTab, setStorageSubTab] = useState<'visualizer' | 'tags'>('visualizer');
   const [maintenanceSubTab, setMaintenanceSubTab] = useState<'kanban' | 'scheduler'>('kanban');
@@ -78,7 +94,7 @@ export default function App() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [assetsData, loansData, maintenanceData, metricsData] = await Promise.all([
+      const [assetsData, loansData, maintenanceData, metricsData, labsData] = await Promise.all([
         api.getAssets({
           lab: currentLab,
           category: inventoryCategory,
@@ -88,14 +104,15 @@ export default function App() {
         api.getLoans({ lab: currentLab }),
         api.getMaintenanceTasks(currentLab),
         api.getMetrics(currentLab),
+        api.getLaboratories(),
       ]);
 
       if (Array.isArray(assetsData)) setAssets(assetsData);
       if (Array.isArray(loansData)) setLoans(loansData);
       if (Array.isArray(maintenanceData)) setMaintenance(maintenanceData);
       if (metricsData) setMetrics(metricsData);
+      if (Array.isArray(labsData)) setLaboratories(labsData);
     } catch (err: any) {
-      // During server reload, quietly keep fallback state without throwing unhandled exceptions
       console.warn('Syncing with laboratory catalog:', err.message);
     } finally {
       setLoading(false);
@@ -105,6 +122,48 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Laboratory Handlers (Dynamic Add, Edit, Delete)
+  const handleAddLaboratory = async (labData: { code: string; name: string; roomNumber: string; capacity: number; description?: string }) => {
+    await api.createLaboratory(labData);
+    showToast(`Laboratory ${labData.code} added successfully.`);
+    fetchData();
+  };
+
+  const handleUpdateLaboratory = async (code: string, updates: Partial<Laboratory>) => {
+    await api.updateLaboratory(code, updates);
+    showToast(`Laboratory ${code} updated.`);
+    fetchData();
+  };
+
+  const handleDeleteLaboratory = async (code: string, force = false) => {
+    try {
+      const res = await api.deleteLaboratory(code, force);
+      showToast(res.message);
+      if (currentLab === code) setCurrentLab('ALL');
+      fetchData();
+      return { success: true };
+    } catch (err: any) {
+      if (err.message?.includes('asset item(s)')) {
+        return { success: false, requiresConfirmation: true, assetCount: 1, message: err.message };
+      }
+      showToast(err.message || 'Failed to delete laboratory', 'error');
+      return { success: false, message: err.message };
+    }
+  };
+
+  // System Data Reset Handlers
+  const handleResetToZero = async () => {
+    await api.resetData('zero');
+    showToast('Lahat ng records ay nabura na (Database back to 0).');
+    fetchData();
+  };
+
+  const handleRestoreDefaults = async () => {
+    await api.resetData('default');
+    showToast('ACLC Default Catalog (160 units) restored.');
+    fetchData();
+  };
 
   // Asset CRUD Handlers
   const handleSaveAsset = async (assetData: Partial<Asset>) => {
@@ -163,8 +222,6 @@ export default function App() {
     fetchData();
   };
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   // Cross-module navigations
   const handleQuickDispenseFromInventory = (asset: Asset) => {
     setPreselectedBorrowAsset(asset);
@@ -222,6 +279,9 @@ export default function App() {
         isAtlasConnected={metrics.isAtlasConnected}
         onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         isMobileMenuOpen={isMobileMenuOpen}
+        laboratories={laboratories}
+        onOpenLabModal={() => setIsLabModalOpen(true)}
+        onOpenResetModal={() => setIsResetModalOpen(true)}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -236,6 +296,8 @@ export default function App() {
           maintenanceCount={maintenanceTicketsCount}
           isMobileOpen={isMobileMenuOpen}
           onCloseMobile={() => setIsMobileMenuOpen(false)}
+          laboratories={laboratories}
+          onOpenLabModal={() => setIsLabModalOpen(true)}
         />
 
         {/* Main Application Canvas */}
@@ -255,6 +317,10 @@ export default function App() {
                   setPreselectedBorrowAsset(null);
                   setIsBorrowModalOpen(true);
                 }}
+                laboratories={laboratories}
+                onOpenLabModal={() => setIsLabModalOpen(true)}
+                onOpenResetModal={() => setIsResetModalOpen(true)}
+                onSelectLab={(lab) => setCurrentLab(lab)}
               />
             )}
 
@@ -422,7 +488,8 @@ export default function App() {
         }}
         onSave={handleSaveAsset}
         assetToEdit={assetToEdit}
-        defaultLab={currentLab === 'ALL' ? 'COMLAB' : currentLab}
+        defaultLab={currentLab === 'ALL' ? (laboratories[0]?.code || 'COMLAB') : currentLab}
+        laboratories={laboratories}
       />
 
       {/* Borrow & Dispense Modal (Phase 2) */}
@@ -435,6 +502,26 @@ export default function App() {
         onIssueLoan={handleIssueLoan}
         availableAssets={assets}
         preselectedAsset={preselectedBorrowAsset}
+      />
+
+      {/* Laboratory Management Modal */}
+      <LaboratoryModal
+        isOpen={isLabModalOpen}
+        onClose={() => setIsLabModalOpen(false)}
+        laboratories={laboratories}
+        onAddLaboratory={handleAddLaboratory}
+        onUpdateLaboratory={handleUpdateLaboratory}
+        onDeleteLaboratory={handleDeleteLaboratory}
+        currentLab={currentLab}
+        onSelectLab={(code) => setCurrentLab(code)}
+      />
+
+      {/* System Reset & Database Purge Modal */}
+      <ResetModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onResetToZero={handleResetToZero}
+        onRestoreDefaults={handleRestoreDefaults}
       />
 
       {/* Mobile Bottom Navigation Bar (Phones & Small Tablets) */}

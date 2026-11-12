@@ -1,6 +1,18 @@
-export type LabFacility = 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
+export interface Laboratory {
+  code: string;
+  name: string;
+  roomNumber: string;
+  capacity: number;
+  description?: string;
+  isCustom?: boolean;
+  totalAssets?: number;
+  activeUnits?: number;
+  activeUnitsCount?: number;
+}
 
-export type LabType = 'ALL' | LabFacility;
+export type LabFacility = string;
+
+export type LabType = 'ALL' | string;
 
 export type AssetCategory =
   | 'Computers'

@@ -47,10 +47,15 @@ export const getSystemHealth = async (_req: Request, res: Response) => {
   }
 };
 
-export const resetData = async (_req: Request, res: Response) => {
+export const resetData = async (req: Request, res: Response) => {
   try {
+    const mode = req.body?.mode || req.query?.mode;
+    if (mode === 'zero' || mode === 'wipe') {
+      const result = await DataStore.wipeAllData();
+      return res.json({ success: true, message: result.message, mode: 'zero' });
+    }
     const result = await DataStore.resetToDefaults();
-    res.json({ success: true, message: result.message });
+    res.json({ success: true, message: result.message, mode: 'default' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

@@ -1,4 +1,4 @@
-import { Asset, LoanRecord, MaintenanceTask, LabStorageLayout } from '../types';
+import { Asset, LoanRecord, MaintenanceTask, LabStorageLayout, Laboratory } from '../types';
 
 const rawBase = import.meta.env.VITE_API_BASE_URL;
 const BASE_URL =
@@ -158,15 +158,44 @@ export const api = {
     });
   },
 
+  // Laboratories (Dynamic Facility Management)
+  async getLaboratories() {
+    const res = await request<{ success: boolean; data: Laboratory[] }>('/laboratories');
+    return res.data;
+  },
+
+  async createLaboratory(lab: { code: string; name: string; roomNumber: string; capacity?: number; description?: string }) {
+    const res = await request<{ success: boolean; data: Laboratory; message: string }>('/laboratories', {
+      method: 'POST',
+      body: JSON.stringify(lab),
+    });
+    return res.data;
+  },
+
+  async updateLaboratory(code: string, updates: Partial<Laboratory>) {
+    const res = await request<{ success: boolean; data: Laboratory; message: string }>(`/laboratories/${code}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    return res.data;
+  },
+
+  async deleteLaboratory(code: string, force = false) {
+    return request<{ success: boolean; message: string }>(`/laboratories/${code}${force ? '?force=true' : ''}`, {
+      method: 'DELETE',
+    });
+  },
+
   // System & Reports (Phase 5)
   async getSystemHealth() {
     const res = await request<{ success: boolean; data: any }>('/system/health');
     return res.data;
   },
 
-  async resetData() {
-    return request<{ success: boolean; message: string }>('/system/reset', {
+  async resetData(mode: 'zero' | 'default' = 'default') {
+    return request<{ success: boolean; message: string; mode?: string }>('/system/reset', {
       method: 'POST',
+      body: JSON.stringify({ mode }),
     });
   },
 

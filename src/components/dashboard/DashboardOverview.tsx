@@ -1,5 +1,5 @@
 import React from 'react';
-import { LabType } from '../../types';
+import { LabType, Laboratory } from '../../types';
 import {
   Boxes,
   CheckCircle2,
@@ -11,7 +11,11 @@ import {
   Wrench,
   ArrowRight,
   ShieldAlert,
-  Server
+  Server,
+  Plus,
+  RotateCcw,
+  SlidersHorizontal,
+  Building2,
 } from 'lucide-react';
 
 interface DashboardOverviewProps {
@@ -30,6 +34,10 @@ interface DashboardOverviewProps {
   onNavigate: (tab: any) => void;
   onOpenNewAsset: () => void;
   onOpenBorrow: () => void;
+  laboratories?: Laboratory[];
+  onOpenLabModal?: () => void;
+  onOpenResetModal?: () => void;
+  onSelectLab?: (lab: string) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -38,6 +46,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onNavigate,
   onOpenNewAsset,
   onOpenBorrow,
+  laboratories = [],
+  onOpenLabModal,
+  onOpenResetModal,
+  onSelectLab,
 }) => {
   const cards = [
     {
@@ -103,35 +115,45 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               </div>
               <h1 className="text-xl sm:text-2xl font-bold font-kabel tracking-tight text-slate-950">
                 {currentLab === 'ALL'
-                  ? 'All Laboratory Facilities (160 Units Scope)'
-                  : currentLab === 'COMLAB'
-                  ? 'COMLAB - Computer Programming Lab (40 Units Scope)'
-                  : currentLab === 'NETLAB'
-                  ? 'NETLAB - Cisco CCNA Networking Lab (25 Units Scope)'
-                  : currentLab === 'TESDA'
-                  ? 'TESDA - Hardware Servicing NC II Lab (20 Units Scope)'
-                  : currentLab === 'MACLAB'
-                  ? 'MACLAB - Multimedia & Graphics Design Lab (30 Units Scope)'
-                  : currentLab === 'CYBERLAB'
-                  ? 'CYBERLAB - Cybersecurity & Cloud Server Lab (20 Units Scope)'
-                  : 'IOTLAB - IoT, Robotics & Embedded Lab (25 Units Scope)'}
+                  ? `All Laboratory Facilities (${laboratories.length} Labs · ${metrics.totalAssets} Units Scope)`
+                  : `${currentLab} - ${laboratories.find((l) => l.code === currentLab)?.name || currentLab}`}
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl font-medium leading-relaxed">
-                Real-time asset tracking, dispensing and loan returns, storage cabinet visualization, and preventive maintenance for student and faculty equipment across all 6 specialized facilities.
+                Real-time asset tracking, dispensing and loan returns, storage cabinet visualization, and preventive maintenance across all campus academic laboratories.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+            {onOpenLabModal && (
+              <button
+                onClick={onOpenLabModal}
+                className="px-3 py-2 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Manage Labs</span>
+              </button>
+            )}
+
+            {onOpenResetModal && (
+              <button
+                onClick={onOpenResetModal}
+                className="px-3 py-2 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-lg transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Reset to 0</span>
+              </button>
+            )}
+
             <button
               onClick={onOpenBorrow}
-              className="px-4 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 border border-amber-500 rounded-lg transition-colors shadow-xs cursor-pointer"
+              className="px-3.5 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 border border-amber-500 rounded-lg transition-colors shadow-xs cursor-pointer"
             >
               Issue / Borrow Item
             </button>
             <button
               onClick={onOpenNewAsset}
-              className="px-4 py-2.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 rounded-lg transition-colors shadow-xs cursor-pointer"
+              className="px-3.5 py-2 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 rounded-lg transition-colors shadow-xs cursor-pointer"
             >
               + Add New Asset
             </button>
@@ -161,187 +183,95 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         })}
       </div>
 
-      {/* Target Labs Capacity & Status Section (6 Laboratories) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* 1. COMLAB Card */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-blue-100 text-blue-900 border border-blue-200">
-                <Cpu className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">COMLAB (Room 304)</h3>
-                <span className="text-xs text-slate-500 font-medium">Programming & Software Lab</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
-              40 Units
-            </span>
+      {/* Dynamic Laboratories Capacity & Status Section */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-blue-700" />
+            <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider">
+              Academic Facilities & Labs ({laboratories.length})
+            </h2>
           </div>
-          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-            Dell OptiPlex Core i7 Workstations, 24" UltraSharp monitors, classroom projector, and network cabling tools.
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
-            <span className="text-slate-600">Station Allocation: 100% Deployed</span>
+          {onOpenLabModal && (
             <button
-              onClick={() => onNavigate('inventory')}
-              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
+              onClick={onOpenLabModal}
+              className="text-xs font-bold text-blue-700 hover:text-blue-950 hover:underline cursor-pointer flex items-center gap-1"
             >
-              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add or Manage Laboratory</span>
             </button>
-          </div>
+          )}
         </div>
 
-        {/* 2. NETLAB Card */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-indigo-100 text-indigo-900 border border-indigo-200">
-                <Network className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">NETLAB (Room 306)</h3>
-                <span className="text-xs text-slate-500 font-medium">Cisco CCNA Networking Lab</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-300">
-              25 Units
-            </span>
+        {laboratories.length === 0 ? (
+          <div className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-8 text-center space-y-3">
+            <Building2 className="w-10 h-10 text-slate-400 mx-auto stroke-1" />
+            <h3 className="text-sm font-bold text-slate-900">No laboratories currently configured</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              You can create academic laboratories (e.g. COMLAB, NETLAB, ROBOTICS) to track equipment by room.
+            </p>
+            {onOpenLabModal && (
+              <button
+                onClick={onOpenLabModal}
+                className="px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg cursor-pointer"
+              >
+                + Create First Laboratory
+              </button>
+            )}
           </div>
-          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-            Cisco 2911 ISR routers, Catalyst 2960-X 24-port switches, Fluke MicroScanner2 verifiers, and 42U rack units.
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
-            <span className="text-slate-600">Racks Alpha & Beta: Online</span>
-            <button
-              onClick={() => onNavigate('storage')}
-              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              Inspect Racks <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {laboratories.map((lab) => {
+              const isSelected = currentLab === lab.code;
+              return (
+                <div
+                  key={lab.code}
+                  className={`bg-white border-2 rounded-xl p-5 transition-all shadow-xs flex flex-col justify-between ${
+                    isSelected ? 'border-blue-600 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-lg bg-blue-100 text-blue-900 border border-blue-200">
+                          <Cpu className="w-4 h-4 stroke-[2.5]" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">{lab.code}</h3>
+                          <span className="text-xs text-slate-500 font-medium">{lab.roomNumber}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
+                        {lab.activeUnitsCount !== undefined ? `${lab.activeUnitsCount} Units` : `${lab.capacity} Units`}
+                      </span>
+                    </div>
 
-        {/* 3. TESDA Hardware Lab Card */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-amber-100 text-amber-900 border border-amber-300">
-                <Wrench className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">TESDA Hardware Lab</h3>
-                <span className="text-xs text-slate-500 font-medium">Room 208 · CSS NC II</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-amber-950 bg-amber-100 px-2 py-0.5 rounded border border-amber-400">
-              20 Units
-            </span>
-          </div>
-          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-            Modular assembly test beds, Hakko digital soldering stations, Uni-T multimeters, and component diagnosis benches.
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
-            <span className="text-slate-600">NC II Assessment Ready</span>
-            <button
-              onClick={() => onNavigate('maintenance')}
-              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              Open Kanban <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-        </div>
+                    <h4 className="text-xs font-bold text-slate-800 mb-1">{lab.name}</h4>
 
-        {/* 4. MACLAB Card */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-purple-100 text-purple-900 border border-purple-200">
-                <Boxes className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">MACLAB (Room 302)</h3>
-                <span className="text-xs text-slate-500 font-medium">Multimedia & Design Studio</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
-              30 Units
-            </span>
-          </div>
-          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-            Apple iMac 24" 4.5K Retina M3, Wacom Cintiq 16 Pro pen displays, ViewSonic 4K laser projector, and studio gear.
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
-            <span className="text-slate-600">Creative Production Ready</span>
-            <button
-              onClick={() => onNavigate('inventory')}
-              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-        </div>
+                    <p className="text-xs text-slate-600 mb-4 leading-relaxed line-clamp-2">
+                      {lab.description || `Target station capacity: ${lab.capacity} units.`}
+                    </p>
+                  </div>
 
-        {/* 5. CYBERLAB Card */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200">
-                <ShieldAlert className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">CYBERLAB (Room 308)</h3>
-                <span className="text-xs text-slate-500 font-medium">Cybersecurity & Cloud Servers</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-              20 Units
-            </span>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
+                    <span className="text-slate-600">
+                      Capacity: <strong>{lab.capacity} units</strong>
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (onSelectLab) onSelectLab(lab.code);
+                        onNavigate('inventory');
+                      }}
+                      className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-            Dell PowerEdge R750 dual Xeon servers, Fortinet FortiGate firewalls, MikroTik 10G routers, and fiber diagnostics.
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
-            <span className="text-slate-600">Isolated Sandbox Network</span>
-            <button
-              onClick={() => onNavigate('inventory')}
-              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-        </div>
-
-        {/* 6. IOTLAB Card */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-5 hover:border-blue-600 transition-colors shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-teal-100 text-teal-900 border border-teal-200">
-                <Server className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">IOTLAB (Room 204)</h3>
-                <span className="text-xs text-slate-500 font-medium">Robotics & Embedded Systems</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-teal-900 bg-teal-100 px-2 py-0.5 rounded border border-teal-300">
-              25 Units
-            </span>
-          </div>
-          <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-            Raspberry Pi 5 Developer Stations, Arduino Mega kits, Rigol digital oscilloscopes, and smart sensor kits.
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 text-xs font-medium">
-            <span className="text-slate-600">Hardware Prototyping Ready</span>
-            <button
-              onClick={() => onNavigate('inventory')}
-              className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
-            >
-              View Assets <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Quick Action Bar & System Status */}

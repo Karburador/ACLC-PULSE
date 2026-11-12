@@ -13,6 +13,8 @@ import {
   Menu
 } from 'lucide-react';
 
+import { Laboratory } from '../../types';
+
 export type NavigationTab =
   | 'dashboard'
   | 'inventory'
@@ -29,6 +31,8 @@ interface SidebarProps {
   maintenanceCount?: number;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+  laboratories?: Laboratory[];
+  onOpenLabModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,6 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   maintenanceCount = 0,
   isMobileOpen = false,
   onCloseMobile,
+  laboratories = [],
+  onOpenLabModal,
 }) => {
   const navItems: { id: NavigationTab; label: string; icon: React.ElementType; badge?: number; phaseTag: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, phaseTag: 'Overview' },
@@ -138,37 +144,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between text-slate-800 font-bold">
           <span className="flex items-center gap-1.5">
             <Building className="w-3.5 h-3.5 text-blue-700" />
-            Target Labs
+            Laboratories ({laboratories.length})
           </span>
-          <span className="text-[11px] text-blue-800 font-mono font-extrabold bg-blue-100 px-1.5 py-0.2 rounded">
-            160 Total Units
-          </span>
+          {onOpenLabModal && (
+            <button
+              onClick={onOpenLabModal}
+              title="Add or Delete Laboratories"
+              className="text-[10px] font-bold text-blue-700 hover:text-blue-950 hover:underline cursor-pointer"
+            >
+              Manage
+            </button>
+          )}
         </div>
-        <div className="space-y-1.5 text-[11px] text-slate-700">
-          <div className="flex justify-between items-center">
-            <span className="font-medium">COMLAB (Room 304)</span>
-            <span className="font-mono font-bold text-slate-900">40 units</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="font-medium">NETLAB (Room 306)</span>
-            <span className="font-mono font-bold text-slate-900">25 units</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="font-medium">TESDA (Room 208)</span>
-            <span className="font-mono font-bold text-slate-900">20 units</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="font-medium">MACLAB (Room 302)</span>
-            <span className="font-mono font-bold text-slate-900">30 units</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="font-medium">CYBERLAB (Room 308)</span>
-            <span className="font-mono font-bold text-slate-900">20 units</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="font-medium">IOTLAB (Room 204)</span>
-            <span className="font-mono font-bold text-slate-900">25 units</span>
-          </div>
+        <div className="space-y-1.5 text-[11px] text-slate-700 max-h-48 overflow-y-auto pr-1">
+          {laboratories.length === 0 ? (
+            <div className="text-slate-500 italic py-1">No laboratories added.</div>
+          ) : (
+            laboratories.map((lab) => (
+              <div key={lab.code} className="flex justify-between items-center">
+                <span className="font-medium truncate max-w-[130px]" title={`${lab.name} (${lab.roomNumber})`}>
+                  {lab.code} ({lab.roomNumber})
+                </span>
+                <span className="font-mono font-bold text-slate-900 shrink-0">
+                  {lab.activeUnitsCount !== undefined ? `${lab.activeUnitsCount}u` : `${lab.capacity}u`}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Asset, AssetCategory, AssetStatus } from '../../types';
+import { Asset, AssetCategory, AssetStatus, Laboratory } from '../../types';
 import { X, Save, AlertCircle } from 'lucide-react';
 
 interface AssetModalProps {
@@ -7,7 +7,8 @@ interface AssetModalProps {
   onClose: () => void;
   onSave: (assetData: Partial<Asset>) => Promise<void>;
   assetToEdit?: Asset | null;
-  defaultLab?: 'COMLAB' | 'NETLAB' | 'TESDA' | 'MACLAB' | 'CYBERLAB' | 'IOTLAB';
+  defaultLab?: string;
+  laboratories?: Laboratory[];
 }
 
 export const AssetModal: React.FC<AssetModalProps> = ({
@@ -16,6 +17,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
   onSave,
   assetToEdit,
   defaultLab = 'COMLAB',
+  laboratories = [],
 }) => {
   const [formData, setFormData] = useState<Partial<Asset>>({
     assetTag: '',
@@ -185,15 +187,22 @@ export const AssetModal: React.FC<AssetModalProps> = ({
               </label>
               <select
                 value={formData.lab}
-                onChange={(e) => setFormData({ ...formData, lab: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, lab: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
-                <option value="COMLAB">COMLAB (40 Units Scope)</option>
-                <option value="NETLAB">NETLAB (25 Units Scope)</option>
-                <option value="TESDA">TESDA Hardware (20 Units Scope)</option>
-                <option value="MACLAB">MACLAB (30 Units Scope)</option>
-                <option value="CYBERLAB">CYBERLAB (20 Units Scope)</option>
-                <option value="IOTLAB">IOTLAB (25 Units Scope)</option>
+                {laboratories.length > 0 ? (
+                  laboratories.map((lab) => (
+                    <option key={lab.code} value={lab.code}>
+                      {lab.code} ({lab.name} - {lab.roomNumber})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="COMLAB">COMLAB (Room 304)</option>
+                    <option value="NETLAB">NETLAB (Room 306)</option>
+                    <option value="TESDA">TESDA Hardware (Room 208)</option>
+                  </>
+                )}
               </select>
             </div>
 

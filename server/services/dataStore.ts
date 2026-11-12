@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { AssetModel, IAsset } from '../models/Asset.js';
 import { LoanModel, ILoan } from '../models/Loan.js';
 import { MaintenanceModel, IMaintenance } from '../models/Maintenance.js';
+import { LaboratoryModel } from '../models/Laboratory.js';
 
 // Pre-seeded comprehensive data for ACLC College of Manila Laboratories:
 // - COMLAB: 40 Workstations & supporting gear
@@ -811,11 +812,63 @@ export interface MemoryLoan {
   returnedNotes?: string;
 }
 
+export const DEFAULT_LABORATORIES = [
+  {
+    code: 'COMLAB',
+    name: 'Computer Programming & Applications Lab',
+    roomNumber: 'Room 304',
+    capacity: 40,
+    description: 'Dell OptiPlex Core i7 Workstations, 24" UltraSharp monitors, classroom projector, and network cabling tools.',
+    isCustom: false,
+  },
+  {
+    code: 'NETLAB',
+    name: 'Cisco CCNA Networking Lab',
+    roomNumber: 'Room 306',
+    capacity: 25,
+    description: 'Cisco 2911 ISR routers, Catalyst 2960-X 24-port switches, Fluke MicroScanner2 verifiers, and 42U rack units.',
+    isCustom: false,
+  },
+  {
+    code: 'TESDA',
+    name: 'Computer Systems Servicing (CSS NC II) Hardware Lab',
+    roomNumber: 'Room 208',
+    capacity: 20,
+    description: 'Modular assembly test beds, Hakko digital soldering stations, Uni-T multimeters, and component diagnosis benches.',
+    isCustom: false,
+  },
+  {
+    code: 'MACLAB',
+    name: 'Multimedia & Graphic Design Studio',
+    roomNumber: 'Room 302',
+    capacity: 30,
+    description: 'Apple iMac 24" 4.5K Retina M3, Wacom Cintiq 16 Pro pen displays, ViewSonic 4K laser projector, and studio gear.',
+    isCustom: false,
+  },
+  {
+    code: 'CYBERLAB',
+    name: 'Cybersecurity, Cloud & Server Operations Lab',
+    roomNumber: 'Room 308',
+    capacity: 20,
+    description: 'Dell PowerEdge R750 dual Xeon servers, Fortinet FortiGate firewalls, MikroTik 10G routers, and fiber diagnostics.',
+    isCustom: false,
+  },
+  {
+    code: 'IOTLAB',
+    name: 'IoT, Robotics & Embedded Systems Lab',
+    roomNumber: 'Room 204',
+    capacity: 25,
+    description: 'Raspberry Pi 5 Developer Stations, Arduino Mega kits, Rigol digital oscilloscopes, and smart sensor kits.',
+    isCustom: false,
+  },
+];
+
 // In-Memory Fallback State (automatically used if MongoDB Atlas is not yet configured,
 // ensuring the application runs out-of-the-box seamlessly in AI Studio dev environment)
 let memoryAssets: any[] = [...INITIAL_ASSETS];
 let memoryLoans: MemoryLoan[] = [...INITIAL_LOANS] as MemoryLoan[];
 let memoryMaintenance: any[] = [...INITIAL_MAINTENANCE];
+let memoryLaboratories: any[] = [...DEFAULT_LABORATORIES];
 let isMongoConnected = false;
 
 export function isValidMongoUri(uri?: string): boolean {
@@ -864,6 +917,11 @@ export async function initDatabaseConnection(): Promise<{ connected: boolean; me
       await (AssetModel as any).insertMany(INITIAL_ASSETS);
       await (LoanModel as any).insertMany(INITIAL_LOANS);
       await (MaintenanceModel as any).insertMany(INITIAL_MAINTENANCE);
+    }
+
+    const labCount = await (LaboratoryModel as any).countDocuments();
+    if (labCount === 0) {
+      await (LaboratoryModel as any).insertMany(DEFAULT_LABORATORIES);
     }
 
     return { connected: true, message: 'Successfully connected and verified MongoDB Atlas instance.' };
@@ -1201,11 +1259,179 @@ export const DataStore = {
     };
   },
 
-  // RESET SEED
+  // LABORATORY MANAGEMENT (Dynamic Add, Edit, Delete)
+  async getLaboratories() {
+    let labs: any[] = [];
+    if (isMongoConnected) {
+      labs = await (LaboratoryModel as any).find({}).sort({ code: 1 }).lean();
+      if (labs.length === 0) {
+        await (LaboratoryModel as any).insertMany(DEFAULT_LABORATORIES);
+        labs = await (LaboratoryModel as any).find({}).sort({ code: 1 }).lean();
+      }
+    } else {
+      labs = [...memoryLaboratories];
+    }
+
+    // Enrich with live counts from current assets
+    const assets = await this.getAssets();
+    return labs.map((l: any) => {
+      const labAssets = assets.filter((a: any) => a.lab?.toUpperCase() === l.code?.toUpperCase());
+      const totalUnits = labAssets.reduce((sum: number, a: any) => sum + (a.quantity || 0), 0);
+      const availableUnits = labAssets.reduce((sum: number, a: any) => sum + (a.availableQuantity || 0), 0);
+      return {
+        ...l,
+        id: l._id ? l._id.toString() : l.code,
+        totalAssets: labAssets.length,
+        activeUnitsCount: totalUnits,
+        availableUnitsCount: availableUnits,
+      };
+    });
+  },
+
+  async createLaboratory(data: { code: string; name: string; roomNumber: string; capacity?: number; description?: string }) {
+    const code = (data.code || '').toUpperCase().trim();
+    if (!code) throw new Error('Laboratory code identifier is required (e.g. ROBOTICS)');
+
+    const existing = isMongoConnected
+      ? await (LaboratoryModel as any).findOne({ code }).lean()
+      : memoryLaboratories.find((l) => l.code.toUpperCase() === code);
+
+    if (existing) {
+      throw new Error(`Laboratory code "${code}" already exists.`);
+    }
+
+    const newLab = {
+      code,
+      name: data.name?.trim() || `${code} Laboratory`,
+      roomNumber: data.roomNumber?.trim() || 'Room TBD',
+      capacity: Number(data.capacity) || 30,
+      description: data.description?.trim() || `Facility for ${code}`,
+      isCustom: true,
+    };
+
+    if (isMongoConnected) {
+      const created = await (LaboratoryModel as any).create(newLab);
+      return { ...created.toObject(), id: created._id.toString() };
+    }
+
+    memoryLaboratories.push(newLab);
+
+    // Also add a default storage layout for this laboratory so Storage Visualizer works
+    LAB_STORAGE_LAYOUTS.push({
+      lab: code,
+      name: `${newLab.name} (${newLab.roomNumber})`,
+      roomNumber: newLab.roomNumber,
+      totalCapacityUnits: newLab.capacity,
+      activeUnitsCount: 0,
+      cabinets: [
+        {
+          id: `cabinet-${code.toLowerCase()}-1`,
+          name: `Cabinet ${code}-A`,
+          description: `Primary equipment and tools cabinet for ${newLab.name}`,
+          shelves: [
+            { id: `shelf-${code.toLowerCase()}-1`, label: 'Shelf 1 - Primary Equipment', assignedCategory: 'Computers' },
+            { id: `shelf-${code.toLowerCase()}-2`, label: 'Shelf 2 - Tools & Hardware', assignedCategory: 'Tools' },
+            { id: `shelf-${code.toLowerCase()}-3`, label: 'Shelf 3 - Consumables & Accessories', assignedCategory: 'Consumables' },
+          ],
+        },
+      ],
+    });
+
+    return newLab;
+  },
+
+  async updateLaboratory(code: string, updates: Partial<{ name: string; roomNumber: string; capacity: number; description: string }>) {
+    const upperCode = code.toUpperCase().trim();
+    if (isMongoConnected) {
+      const updated = await (LaboratoryModel as any).findOneAndUpdate(
+        { code: upperCode },
+        { ...updates },
+        { new: true }
+      ).lean();
+      if (updated) return { ...updated, id: updated._id.toString() };
+    }
+
+    const idx = memoryLaboratories.findIndex((l) => l.code.toUpperCase() === upperCode);
+    if (idx !== -1) {
+      memoryLaboratories[idx] = { ...memoryLaboratories[idx], ...updates };
+      return memoryLaboratories[idx];
+    }
+    throw new Error(`Laboratory "${code}" not found.`);
+  },
+
+  async deleteLaboratory(code: string, force: boolean = false) {
+    const upperCode = code.toUpperCase().trim();
+    const assets = await this.getAssets(upperCode);
+
+    if (assets.length > 0 && !force) {
+      return {
+        success: false,
+        requiresConfirmation: true,
+        assetCount: assets.length,
+        message: `Laboratory "${upperCode}" has ${assets.length} registered asset item(s). Confirm force delete to remove the lab and its items.`,
+      };
+    }
+
+    if (force && assets.length > 0) {
+      if (isMongoConnected) {
+        await (AssetModel as any).deleteMany({ lab: upperCode });
+        await (LoanModel as any).deleteMany({ lab: upperCode });
+        await (MaintenanceModel as any).deleteMany({ lab: upperCode });
+      } else {
+        memoryAssets = memoryAssets.filter((a) => a.lab?.toUpperCase() !== upperCode);
+        memoryLoans = memoryLoans.filter((l) => l.lab?.toUpperCase() !== upperCode);
+        memoryMaintenance = memoryMaintenance.filter((m) => m.lab?.toUpperCase() !== upperCode);
+      }
+    }
+
+    if (isMongoConnected) {
+      await (LaboratoryModel as any).findOneAndDelete({ code: upperCode });
+    }
+
+    memoryLaboratories = memoryLaboratories.filter((l) => l.code.toUpperCase() !== upperCode);
+
+    const layoutIdx = LAB_STORAGE_LAYOUTS.findIndex((l) => l.lab.toUpperCase() === upperCode);
+    if (layoutIdx !== -1) {
+      LAB_STORAGE_LAYOUTS.splice(layoutIdx, 1);
+    }
+
+    return {
+      success: true,
+      message: `Laboratory "${upperCode}" and its associated assets have been removed.`,
+    };
+  },
+
+  // RESET SEED / WIPE DATA TO 0
   async resetToDefaults() {
     memoryAssets = [...INITIAL_ASSETS];
     memoryLoans = [...INITIAL_LOANS] as MemoryLoan[];
     memoryMaintenance = [...INITIAL_MAINTENANCE];
-    return { success: true, message: 'Reset to default ACLC Manila lab catalog.' };
+    memoryLaboratories = [...DEFAULT_LABORATORIES];
+
+    if (isMongoConnected) {
+      await (AssetModel as any).deleteMany({});
+      await (LoanModel as any).deleteMany({});
+      await (MaintenanceModel as any).deleteMany({});
+      await (LaboratoryModel as any).deleteMany({});
+
+      await (AssetModel as any).insertMany(INITIAL_ASSETS);
+      await (LoanModel as any).insertMany(INITIAL_LOANS);
+      await (MaintenanceModel as any).insertMany(INITIAL_MAINTENANCE);
+      await (LaboratoryModel as any).insertMany(DEFAULT_LABORATORIES);
+    }
+    return { success: true, message: 'Reset back to default ACLC Manila lab catalog (6 labs, 160 core equipment units).' };
+  },
+
+  async wipeAllData() {
+    memoryAssets = [];
+    memoryLoans = [];
+    memoryMaintenance = [];
+
+    if (isMongoConnected) {
+      await (AssetModel as any).deleteMany({});
+      await (LoanModel as any).deleteMany({});
+      await (MaintenanceModel as any).deleteMany({});
+    }
+    return { success: true, message: 'All assets, loans, and maintenance tickets have been deleted. Database is back to 0.' };
   },
 };

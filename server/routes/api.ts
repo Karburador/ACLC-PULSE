@@ -25,6 +25,13 @@ import {
   exportReportCsv,
 } from '../controllers/systemController.js';
 
+import {
+  getLaboratories,
+  createLaboratory,
+  updateLaboratory,
+  deleteLaboratory,
+} from '../controllers/laboratoryController.js';
+
 const router = Router();
 
 // Assets
@@ -33,6 +40,12 @@ router.get('/assets/:id', getAssetById);
 router.post('/assets', createAsset);
 router.put('/assets/:id', updateAsset);
 router.delete('/assets/:id', deleteAsset);
+
+// Laboratories (Dynamic Management)
+router.get('/laboratories', getLaboratories);
+router.post('/laboratories', createLaboratory);
+router.put('/laboratories/:code', updateLaboratory);
+router.delete('/laboratories/:code', deleteLaboratory);
 
 // Loans / Dispensing
 router.get('/loans', getLoans);
@@ -50,6 +63,7 @@ router.get('/metrics', getMetrics);
 router.get('/storage/layouts', getStorageLayouts);
 router.get('/system/health', getSystemHealth);
 router.post('/system/reset', resetData);
+router.post('/reset-data', resetData);
 router.get('/reports/export', exportReportCsv);
 
 export default router;

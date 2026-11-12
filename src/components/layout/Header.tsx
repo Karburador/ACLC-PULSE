@@ -1,5 +1,5 @@
 import React from 'react';
-import { LabType } from '../../types';
+import { LabType, Laboratory } from '../../types';
 import {
   Menu,
   X,
@@ -7,7 +7,9 @@ import {
   RefreshCw,
   Database,
   Building2,
-  ChevronDown
+  ChevronDown,
+  RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -18,6 +20,9 @@ interface HeaderProps {
   isAtlasConnected?: boolean;
   onToggleMobileMenu?: () => void;
   isMobileMenuOpen?: boolean;
+  laboratories?: Laboratory[];
+  onOpenLabModal?: () => void;
+  onOpenResetModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,7 +33,12 @@ export const Header: React.FC<HeaderProps> = ({
   isAtlasConnected,
   onToggleMobileMenu,
   isMobileMenuOpen,
+  laboratories = [],
+  onOpenLabModal,
+  onOpenResetModal,
 }) => {
+  const totalUnits = laboratories.reduce((sum, l) => sum + (l.activeUnitsCount || 0), 0);
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-2 sm:gap-4 lg:gap-6 px-3 sm:px-6 py-2.5 sm:py-3.5 bg-white border-b-2 border-slate-300 text-slate-900 shadow-xs">
       {/* Zone 1: Mobile Hamburger & Brand title */}
@@ -72,8 +82,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Zone 2: Lab Switcher Dropdown */}
-      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+      {/* Zone 2: Lab Switcher Dropdown & Lab Management */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
         <div className="relative flex items-center bg-white border-2 border-slate-300 hover:border-blue-700 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 shadow-xs max-w-[170px] sm:max-w-none transition-colors">
           <Building2 className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-blue-800 mr-1 sm:mr-2 shrink-0" />
           <span className="text-xs text-slate-600 font-bold mr-2 hidden lg:inline">Active Scope:</span>
@@ -83,16 +93,29 @@ export const Header: React.FC<HeaderProps> = ({
             className="bg-transparent text-xs sm:text-sm font-bold text-slate-900 focus:outline-none cursor-pointer pr-4 appearance-none truncate"
             aria-label="Filter laboratory context"
           >
-            <option value="ALL" className="bg-white text-slate-900">All Labs (160 Units)</option>
-            <option value="COMLAB" className="bg-white text-slate-900">COMLAB (40 Units)</option>
-            <option value="NETLAB" className="bg-white text-slate-900">NETLAB (25 Units)</option>
-            <option value="TESDA" className="bg-white text-slate-900">TESDA Hardware (20 Units)</option>
-            <option value="MACLAB" className="bg-white text-slate-900">MACLAB (30 Units)</option>
-            <option value="CYBERLAB" className="bg-white text-slate-900">CYBERLAB (20 Units)</option>
-            <option value="IOTLAB" className="bg-white text-slate-900">IOTLAB (25 Units)</option>
+            <option value="ALL" className="bg-white text-slate-900">
+              All Labs {totalUnits > 0 ? `(${totalUnits} Units)` : '(0 Units)'}
+            </option>
+            {laboratories.map((lab) => (
+              <option key={lab.code} value={lab.code} className="bg-white text-slate-900">
+                {lab.code} ({lab.activeUnitsCount !== undefined ? `${lab.activeUnitsCount} Units` : lab.name})
+              </option>
+            ))}
           </select>
           <ChevronDown className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-600 pointer-events-none absolute right-1.5 sm:right-2.5" />
         </div>
+
+        {/* Manage Labs Button (Add/Delete/Configure Labs) */}
+        {onOpenLabModal && (
+          <button
+            onClick={onOpenLabModal}
+            title="Manage Academic Laboratories (Add, Edit, or Delete Facilities)"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span className="hidden md:inline">Labs</span>
+          </button>
+        )}
 
         <button
           onClick={onRefresh}
@@ -104,8 +127,19 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* Zone 3: Primary CTA */}
-      <div className="flex items-center gap-2 shrink-0">
+      {/* Zone 3: Reset Data CTA & Add Asset CTA */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {onOpenResetModal && (
+          <button
+            onClick={onOpenResetModal}
+            title="System Reset & Purge Data (Back to 0)"
+            className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-rose-800 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-300 rounded-lg transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+          >
+            <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span className="hidden sm:inline">Reset to 0</span>
+          </button>
+        )}
+
         <button
           onClick={onOpenNewAssetModal}
           className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 border border-amber-500 rounded-lg transition-colors shadow-sm cursor-pointer whitespace-nowrap"

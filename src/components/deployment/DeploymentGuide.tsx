@@ -44,12 +44,27 @@ export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset })
   };
 
   const handleResetCatalog = async () => {
-    if (!window.confirm('Reset catalog back to ACLC Manila default laboratory units (160 units across COMLAB, NETLAB, TESDA, MACLAB, CYBERLAB, IOTLAB)?')) {
+    if (!window.confirm('I-restore ang ACLC default laboratory catalog (160 units across standard labs)?')) {
       return;
     }
     try {
       setResetting(true);
-      const res = await api.resetData();
+      const res = await api.resetData('default');
+      setResetMessage(res.message);
+      onDataReset();
+      setTimeout(() => setResetMessage(null), 4000);
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleWipeZero = async () => {
+    if (!window.confirm('SIGURADO KA BA? Buburahin lahat ng assets, borrow loans, at maintenance tickets para MAGING 0 LAHAT ang data ng inventory.')) {
+      return;
+    }
+    try {
+      setResetting(true);
+      const res = await api.resetData('zero');
       setResetMessage(res.message);
       onDataReset();
       setTimeout(() => setResetMessage(null), 4000);
@@ -83,14 +98,26 @@ CLIENT_URL="https://aclc-pulse.vercel.app"`;
           </p>
         </div>
 
-        <button
-          onClick={handleResetCatalog}
-          disabled={resetting}
-          className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-amber-700 stroke-[2.5]" />
-          <span>{resetting ? 'Resetting...' : 'Reset Default Seed Data'}</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleWipeZero}
+            disabled={resetting}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-700 hover:text-white bg-red-50 hover:bg-red-600 border border-red-300 hover:border-red-600 rounded-lg transition-colors cursor-pointer shadow-2xs"
+            title="Delete lahat ng data para back to 0"
+          >
+            <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{resetting ? 'Processing...' : 'Reset to 0 (Wipe)'}</span>
+          </button>
+          <button
+            onClick={handleResetCatalog}
+            disabled={resetting}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+            title="Ibalik ang ACLC default 160 units"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-blue-700 stroke-[2.5]" />
+            <span>{resetting ? 'Processing...' : 'Restore Demo (160 Units)'}</span>
+          </button>
+        </div>
       </div>
 
       {resetMessage && (
