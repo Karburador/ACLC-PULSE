@@ -694,6 +694,7 @@ export default function App() {
         assetToEdit={assetToEdit}
         defaultLab={currentLab === 'ALL' ? (laboratories[0]?.code || 'COMLAB') : currentLab}
         laboratories={laboratories}
+        existingAssets={allAssets}
       />
 
       {/* Borrow & Dispense Modal (Phase 2) */}

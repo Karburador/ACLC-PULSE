@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, AssetCategory, AssetStatus, Laboratory } from '../../types';
 import { DEFAULT_STORAGE_LAYOUTS } from '../../data/storageLayouts';
-import { X, Save, AlertCircle, MapPin } from 'lucide-react';
+import { X, Save, AlertCircle, MapPin, Sparkles } from 'lucide-react';
 
 interface AssetModalProps {
   isOpen: boolean;
@@ -10,6 +10,44 @@ interface AssetModalProps {
   assetToEdit?: Asset | null;
   defaultLab?: string;
   laboratories?: Laboratory[];
+  existingAssets?: Asset[];
+}
+
+const CATEGORY_TAG_CODES: Record<AssetCategory, string> = {
+  Computers: 'PC',
+  Routers: 'RT',
+  Tools: 'TL',
+  Projectors: 'PJ',
+  Peripherals: 'PR',
+  Consumables: 'CS',
+};
+
+function generateSequentialTag(
+  labCode: string,
+  category: AssetCategory,
+  existingAssets: Asset[]
+): string {
+  const labPrefix = (labCode || 'COM').replace(/[^A-Z0-9]/gi, '').slice(0, 3).toUpperCase() || 'COM';
+  const catCode = CATEGORY_TAG_CODES[category] || 'AS';
+  const basePrefix = `ACLC-${labPrefix}-${catCode}`;
+  const regex = new RegExp(`^${basePrefix}(\\d+)$`, 'i');
+
+  let maxNum = 0;
+  for (const item of existingAssets) {
+    const match = (item.assetTag || '').trim().match(regex);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (!Number.isNaN(n) && n > maxNum) maxNum = n;
+    }
+  }
+
+  let next = maxNum + 1;
+  const usedTags = new Set(existingAssets.map((a) => (a.assetTag || '').trim().toUpperCase()));
+  while (usedTags.has(`${basePrefix}${String(next).padStart(2, '0')}`)) {
+    next += 1;
+  }
+
+  return `${basePrefix}${String(next).padStart(2, '0')}`;
 }
 
 export const AssetModal: React.FC<AssetModalProps> = ({
@@ -19,6 +57,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
   assetToEdit,
   defaultLab = 'COMLAB',
   laboratories = [],
+  existingAssets = [],
 }) => {
   const [formData, setFormData] = useState<Partial<Asset>>({
     assetTag: '',
@@ -42,9 +81,11 @@ export const AssetModal: React.FC<AssetModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isTagManual, setIsTagManual] = useState(false);
 
   useEffect(() => {
     if (assetToEdit) {
+      setIsTagManual(true);
       setFormData({
         ...assetToEdit,
         storageLocation: assetToEdit.storageLocation || {
@@ -54,16 +95,17 @@ export const AssetModal: React.FC<AssetModalProps> = ({
         },
       });
     } else {
+      setIsTagManual(false);
       const targetLab = defaultLab === 'ALL' ? (laboratories[0]?.code || 'COMLAB') : defaultLab;
-      const tagPrefix = targetLab.slice(0, 3).toUpperCase();
-      const generatedTag = `ACLC-${tagPrefix}-${Math.floor(100 + Math.random() * 900)}`;
+      const initialCategory: AssetCategory = 'Computers';
+      const generatedTag = generateSequentialTag(targetLab, initialCategory, existingAssets);
       const labLayout = DEFAULT_STORAGE_LAYOUTS.find(
         (l) => l.lab.toUpperCase() === targetLab.toUpperCase()
       );
       setFormData({
         assetTag: generatedTag,
         name: '',
-        category: 'Computers',
+        category: initialCategory,
         lab: targetLab,
         status: 'Available',
         quantity: 1,
@@ -81,7 +123,8 @@ export const AssetModal: React.FC<AssetModalProps> = ({
       });
     }
     setError(null);
-  }, [assetToEdit, defaultLab, isOpen, laboratories]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetToEdit, defaultLab, isOpen]);
 
   const activeLabLayout = useMemo(() => {
     const code = (formData.lab || defaultLab || 'COMLAB').toUpperCase();
@@ -176,21 +219,45 @@ export const AssetModal: React.FC<AssetModalProps> = ({
         <form onSubmit={handleSubmit} className="px-4 sm:px-5 py-3.5 space-y-2.5 overflow-y-auto text-slate-900 flex-1">
           {/* Row 1: Asset Tag, Item Name, Status */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-            <div className="sm:col-span-3">
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Asset Tag *
-              </label>
+            <div className="sm:col-span-4">
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="block text-[11px] font-bold text-slate-700">
+                  Asset Tag *
+                </label>
+                {!assetToEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTagManual(false);
+                      const nextTag = generateSequentialTag(
+                        formData.lab || 'COMLAB',
+                        (formData.category as AssetCategory) || 'Computers',
+                        existingAssets
+                      );
+                      setFormData((prev) => ({ ...prev, assetTag: nextTag }));
+                    }}
+                    title="Auto-generate next sequential tag"
+                    className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-700 hover:text-blue-950 cursor-pointer"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Auto
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 required
                 value={formData.assetTag || ''}
-                onChange={(e) => setFormData({ ...formData, assetTag: e.target.value.toUpperCase() })}
-                placeholder="ACLC-COM-WS01"
+                onChange={(e) => {
+                  setIsTagManual(true);
+                  setFormData({ ...formData, assetTag: e.target.value.toUpperCase() });
+                }}
+                placeholder="ACLC-COM-PC01"
                 className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-blue-900 focus:outline-none focus:border-blue-600 focus:bg-white"
               />
             </div>
 
-            <div className="sm:col-span-6">
+            <div className="sm:col-span-5">
               <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
                 Asset / Item Name *
               </label>
@@ -228,7 +295,38 @@ export const AssetModal: React.FC<AssetModalProps> = ({
               </label>
               <select
                 value={formData.lab}
-                onChange={(e) => setFormData({ ...formData, lab: e.target.value })}
+                onChange={(e) => {
+                  const nextLab = e.target.value;
+                  const nextLayout = DEFAULT_STORAGE_LAYOUTS.find(
+                    (l) => l.lab.toUpperCase() === nextLab.toUpperCase()
+                  );
+                  const nextTag =
+                    !assetToEdit && !isTagManual
+                      ? generateSequentialTag(
+                          nextLab,
+                          (formData.category as AssetCategory) || 'Computers',
+                          existingAssets
+                        )
+                      : formData.assetTag;
+                  setFormData((prev) => ({
+                    ...prev,
+                    lab: nextLab,
+                    assetTag: nextTag,
+                    storageLocation: !assetToEdit
+                      ? {
+                          rackOrCabinet:
+                            nextLayout?.cabinets[0]?.name.split(' (')[0] ||
+                            `Cabinet ${nextLab}-A`,
+                          shelf:
+                            nextLab.toUpperCase() === 'COMLAB'
+                              ? 'Under Table (CPU Bay)'
+                              : 'Under Table / Direct',
+                          slot:
+                            nextLab.toUpperCase() === 'COMLAB' ? 'Set 1 of 7' : 'Bay 1',
+                        }
+                      : prev.storageLocation,
+                  }));
+                }}
                 className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
                 {laboratories.length > 0 ? (
@@ -253,7 +351,22 @@ export const AssetModal: React.FC<AssetModalProps> = ({
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as AssetCategory })}
+                onChange={(e) => {
+                  const nextCat = e.target.value as AssetCategory;
+                  const nextTag =
+                    !assetToEdit && !isTagManual
+                      ? generateSequentialTag(
+                          formData.lab || 'COMLAB',
+                          nextCat,
+                          existingAssets
+                        )
+                      : formData.assetTag;
+                  setFormData((prev) => ({
+                    ...prev,
+                    category: nextCat,
+                    assetTag: nextTag,
+                  }));
+                }}
                 className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
                 <option value="Computers">Computers & Servers</option>
