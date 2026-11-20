@@ -9,6 +9,51 @@ export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
     activeUnitsCount: 0,
     cabinets: [
       {
+        id: 'table-com-1',
+        name: 'Long Table 1 (7 Computer Sets)',
+        description: '7-seat workstation table · CPUs mounted under table, monitors & peripherals on tabletop',
+        shelves: [
+          { id: 'com-t1-under', label: 'Under Table (CPU / System Units 01-07)', assignedCategory: 'Computers' },
+          { id: 'com-t1-top', label: 'Tabletop (Monitors & Peripherals 01-07)', assignedCategory: 'Peripherals' },
+        ],
+      },
+      {
+        id: 'table-com-2',
+        name: 'Long Table 2 (7 Computer Sets)',
+        description: '7-seat workstation table · CPUs mounted under table, monitors & peripherals on tabletop',
+        shelves: [
+          { id: 'com-t2-under', label: 'Under Table (CPU / System Units 08-14)', assignedCategory: 'Computers' },
+          { id: 'com-t2-top', label: 'Tabletop (Monitors & Peripherals 08-14)', assignedCategory: 'Peripherals' },
+        ],
+      },
+      {
+        id: 'table-com-3',
+        name: 'Long Table 3 (7 Computer Sets)',
+        description: '7-seat workstation table · CPUs mounted under table, monitors & peripherals on tabletop',
+        shelves: [
+          { id: 'com-t3-under', label: 'Under Table (CPU / System Units 15-21)', assignedCategory: 'Computers' },
+          { id: 'com-t3-top', label: 'Tabletop (Monitors & Peripherals 15-21)', assignedCategory: 'Peripherals' },
+        ],
+      },
+      {
+        id: 'table-com-4',
+        name: 'Long Table 4 (7 Computer Sets)',
+        description: '7-seat workstation table · CPUs mounted under table, monitors & peripherals on tabletop',
+        shelves: [
+          { id: 'com-t4-under', label: 'Under Table (CPU / System Units 22-28)', assignedCategory: 'Computers' },
+          { id: 'com-t4-top', label: 'Tabletop (Monitors & Peripherals 22-28)', assignedCategory: 'Peripherals' },
+        ],
+      },
+      {
+        id: 'table-com-5',
+        name: 'Long Table 5 (7 Computer Sets)',
+        description: '7-seat workstation table · CPUs mounted under table, monitors & peripherals on tabletop',
+        shelves: [
+          { id: 'com-t5-under', label: 'Under Table (CPU / System Units 29-35)', assignedCategory: 'Computers' },
+          { id: 'com-t5-top', label: 'Tabletop (Monitors & Peripherals 29-35)', assignedCategory: 'Peripherals' },
+        ],
+      },
+      {
         id: 'cab-com-a',
         name: 'Cabinet COM-A (AV & Projector Depot)',
         description: 'Enclosed steel cabinet for AV peripherals, HDMI extenders, and wireless presenters',

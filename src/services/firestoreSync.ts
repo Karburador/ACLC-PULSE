@@ -132,8 +132,8 @@ function buildAssetPayload(
     data.availableQuantity !== undefined ? Number(data.availableQuantity) : qty;
   const avail = Math.max(0, Math.min(qty, rawAvail));
 
-  const rack = clampStr(data.storageLocation?.rackOrCabinet, 120, 'Main Depot') || 'Main Depot';
-  const shelf = clampStr(data.storageLocation?.shelf, 120, 'Shelf 1') || 'Shelf 1';
+  const rack = clampStr(data.storageLocation?.rackOrCabinet, 120, 'Long Table 1') || 'Long Table 1';
+  const shelf = clampStr(data.storageLocation?.shelf, 120, 'Under Table (No Shelf)') || 'Under Table (No Shelf)';
   const slot = clampStr(data.storageLocation?.slot, 120);
 
   const storageLocation: Record<string, string> = {

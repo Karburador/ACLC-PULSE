@@ -534,11 +534,11 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     {asset.storageLocation?.rackOrCabinet || 'Laboratory Depot'}
                                   </p>
                                   <p className="text-slate-600 text-[11px]">
-                                    Shelf Level: <strong className="text-slate-900">{asset.storageLocation?.shelf || 'Main Tray'}</strong>
+                                    Position: <strong className="text-slate-900">{asset.storageLocation?.shelf || 'Under Table'}</strong>
                                   </p>
                                   {asset.storageLocation?.slot && (
                                     <p className="text-slate-600 text-[11px]">
-                                      Slot / Tray: <strong className="text-slate-900">{asset.storageLocation.slot}</strong>
+                                      Seat / Bay: <strong className="text-slate-900">{asset.storageLocation.slot}</strong>
                                     </p>
                                   )}
                                   <p className="text-slate-600 text-[11px]">
@@ -670,11 +670,11 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                   {inspectingAsset.storageLocation?.rackOrCabinet}
                 </p>
                 <p className="text-slate-600">
-                  Shelf: <strong className="text-slate-900">{inspectingAsset.storageLocation?.shelf}</strong>
+                  Position: <strong className="text-slate-900">{inspectingAsset.storageLocation?.shelf}</strong>
                 </p>
                 {inspectingAsset.storageLocation?.slot && (
                   <p className="text-slate-600">
-                    Slot / Compartment: <strong className="text-slate-900">{inspectingAsset.storageLocation.slot}</strong>
+                    Seat / Bay: <strong className="text-slate-900">{inspectingAsset.storageLocation.slot}</strong>
                   </p>
                 )}
               </div>

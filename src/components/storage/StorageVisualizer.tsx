@@ -66,17 +66,20 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
 
   const activeCabinet = allCabinets.find((c) => c.id === selectedCabinetId) || allCabinets[0];
 
-  const getAssetsForShelf = (cabinetName: string, shelfLabel: string) => {
+  const getAssetsForShelf = (labCode: string, cabinetName: string, shelfLabel: string) => {
     return assets.filter((a) => {
+      if (a.lab?.toUpperCase() !== labCode.toUpperCase()) return false;
       const loc = a.storageLocation;
       if (!loc) return false;
+      const rackText = (loc.rackOrCabinet || '').trim().toLowerCase();
+      const shelfText = (loc.shelf || '').trim().toLowerCase();
       const cabMatch =
-        cabinetName.toLowerCase().includes(loc.rackOrCabinet.toLowerCase()) ||
-        loc.rackOrCabinet.toLowerCase().includes(cabinetName.toLowerCase());
+        !!rackText &&
+        (cabinetName.toLowerCase().includes(rackText) || rackText.includes(cabinetName.toLowerCase()));
       const shelfMatch =
-        shelfLabel.toLowerCase().includes(loc.shelf.toLowerCase()) ||
-        loc.shelf.toLowerCase().includes(shelfLabel.toLowerCase());
-      return cabMatch || shelfMatch;
+        !!shelfText &&
+        (shelfLabel.toLowerCase().includes(shelfText) || shelfText.includes(shelfLabel.toLowerCase()));
+      return cabMatch && shelfMatch;
     });
   };
 
@@ -87,16 +90,16 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-black uppercase tracking-wider text-blue-900">
-              Phase 3: Facility Architecture
+              Facility Storage Map
             </span>
             <span className="text-slate-400">·</span>
-            <span className="text-xs text-slate-600 font-semibold">Physical Warehouse & Rack Visualization</span>
+            <span className="text-xs text-slate-600 font-semibold">Physical Rack &amp; Cabinet Visualization</span>
           </div>
           <h2 className="text-xl font-black text-slate-950 tracking-tight">
             Laboratory Storage & Rack Map
           </h2>
           <p className="text-xs text-slate-600 mt-0.5 font-normal">
-            Interactive visual mapping of server racks, tool chests, and storage enclosures across all 6 campus laboratories (COMLAB, NETLAB, TESDA, MACLAB, CYBERLAB, and IOTLAB).
+            Interactive visual mapping of server racks, tool chests, and storage enclosures across campus laboratories.
           </p>
         </div>
 
@@ -107,10 +110,10 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Cabinet / Rack Directory */}
+        {/* Table / Cabinet / Rack Directory */}
         <div className="bg-white border-2 border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
           <div className="text-xs font-extrabold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-200">
-            Cabinets & Server Racks
+            Tables, Cabinets &amp; Racks
           </div>
 
           <div className="space-y-1.5">
@@ -133,7 +136,7 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium truncate mt-1">
-                    {cab.shelves.length} Shelves / RU Tiers
+                    {cab.shelves.length} {cab.name.toLowerCase().includes('table') ? 'Table Positions' : 'Positions / Tiers'}
                   </div>
                 </button>
               );
@@ -141,11 +144,11 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
           </div>
         </div>
 
-        {/* Selected Cabinet's Shelves & Racks Visualizer */}
+        {/* Selected Table/Cabinet Positions Visualizer */}
         <div className="lg:col-span-3 bg-white border-2 border-slate-200 rounded-xl p-6 space-y-5 shadow-xs">
           {activeCabinet ? (
             <>
-              {/* Cabinet Meta */}
+              {/* Enclosure Meta */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
                 <div>
                   <div className="flex items-center gap-2">
@@ -161,17 +164,17 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
                 </div>
               </div>
 
-              {/* Physical Shelving Tiers */}
+              {/* Placement Zones / Tiers */}
               <div className="space-y-4">
                 {activeCabinet.shelves.map((shelf, sIdx) => {
-                  const shelfAssets = getAssetsForShelf(activeCabinet.name, shelf.label);
+                  const shelfAssets = getAssetsForShelf(activeCabinet.labCode, activeCabinet.name, shelf.label);
 
                   return (
                     <div
                       key={shelf.id}
                       className="bg-slate-50 border border-slate-300 rounded-xl p-4 transition-all hover:border-slate-400"
                     >
-                      {/* Shelf Title Bar */}
+                      {/* Zone Title Bar */}
                       <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-300 text-xs">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded bg-blue-900 text-amber-300 font-mono font-bold flex items-center justify-center text-[10px]">
@@ -185,15 +188,15 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
                           </span>
                           <span className="text-slate-400">·</span>
                           <span className="text-[11px] font-mono text-blue-900 font-bold bg-blue-100 px-2 py-0.5 rounded">
-                            {shelfAssets.length} Stored Items
+                            {shelfAssets.length} Mapped Items
                           </span>
                         </div>
                       </div>
 
-                      {/* Items on this shelf */}
+                      {/* Items in this zone */}
                       {shelfAssets.length === 0 ? (
                         <div className="text-xs text-slate-500 italic py-2 pl-7 font-medium">
-                          Available shelf capacity for incoming {shelf.assignedCategory.toLowerCase()}.
+                          Available capacity for {shelf.assignedCategory.toLowerCase()}.
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-2">
