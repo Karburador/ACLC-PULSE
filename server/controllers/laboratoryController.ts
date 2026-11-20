@@ -51,6 +51,7 @@ export const deleteLaboratory = async (req: Request, res: Response) => {
         requiresConfirmation: true,
         assetCount: result.assetCount,
         message: result.message,
+        error: result.message,
       });
     }
 

@@ -123,7 +123,12 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
 
       if (!res.success && res.requiresConfirmation) {
         setDeleteWarning({ code: labCode, assetCount: res.assetCount || 0 });
-        setConfirmDeleteCode(labCode);
+        setConfirmDeleteCode(null);
+        return;
+      }
+
+      if (!res.success) {
+        setError(res.message || `Failed to delete laboratory ${labCode}.`);
         return;
       }
 
@@ -195,15 +200,17 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
             <div className="flex items-center gap-2 pt-2">
               <button
                 onClick={() => handleDelete(deleteWarning.code, true)}
-                className="px-3.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg cursor-pointer shadow-xs"
+                disabled={loading}
+                className="px-3.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg cursor-pointer shadow-xs"
               >
-                Force Delete Lab & All Items
+                {loading ? 'Deleting...' : 'Force Delete Lab & All Items'}
               </button>
               <button
                 onClick={() => {
                   setDeleteWarning(null);
                   setConfirmDeleteCode(null);
                 }}
+                disabled={loading}
                 className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg cursor-pointer"
               >
                 Cancel
@@ -417,12 +424,14 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                       <div className="flex items-center gap-1 bg-rose-50 p-1 rounded-lg border border-rose-300">
                         <button
                           onClick={() => handleDelete(lab.code, false)}
-                          className="px-2 py-1 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded cursor-pointer"
+                          disabled={loading}
+                          className="px-2 py-1 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded cursor-pointer"
                         >
-                          Confirm
+                          {loading ? '...' : 'Confirm'}
                         </button>
                         <button
                           onClick={() => setConfirmDeleteCode(null)}
+                          disabled={loading}
                           className="px-1.5 py-1 text-[11px] text-slate-600 hover:text-slate-900 cursor-pointer font-bold"
                         >
                           Cancel
@@ -430,7 +439,11 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setConfirmDeleteCode(lab.code)}
+                        onClick={() => {
+                          setDeleteWarning(null);
+                          setError(null);
+                          setConfirmDeleteCode(lab.code);
+                        }}
                         title={`Delete ${lab.code}`}
                         className="p-1.5 text-rose-700 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer transition-colors"
                       >

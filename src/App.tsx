@@ -139,13 +139,21 @@ export default function App() {
   const handleDeleteLaboratory = async (code: string, force = false) => {
     try {
       const res = await api.deleteLaboratory(code, force);
-      showToast(res.message);
+      if (!res.success && res.requiresConfirmation) {
+        return res;
+      }
+      showToast(res.message || `Laboratory "${code}" deleted.`);
       if (currentLab === code) setCurrentLab('ALL');
       fetchData();
-      return { success: true };
+      return { success: true, message: res.message };
     } catch (err: any) {
-      if (err.message?.includes('asset item(s)')) {
-        return { success: false, requiresConfirmation: true, assetCount: 1, message: err.message };
+      if (err?.data?.requiresConfirmation || err.message?.includes('asset item(s)')) {
+        return {
+          success: false,
+          requiresConfirmation: true,
+          assetCount: err?.data?.assetCount ?? 1,
+          message: err.message,
+        };
       }
       showToast(err.message || 'Failed to delete laboratory', 'error');
       return { success: false, message: err.message };

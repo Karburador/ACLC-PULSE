@@ -50,7 +50,10 @@ async function request<T>(endpoint: string, options?: RequestInit, retries = 2):
 
     const data = await res.json();
     if (!res.ok || data.success === false) {
-      throw new Error(data.error || `HTTP error ${res.status}`);
+      const err: any = new Error(data.error || data.message || `HTTP error ${res.status}`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
     }
     return data;
   } catch (err: any) {
@@ -195,10 +198,30 @@ export const api = {
     return res.data;
   },
 
-  async deleteLaboratory(code: string, force = false) {
-    return request<{ success: boolean; message: string }>(`/laboratories/${code}${force ? '?force=true' : ''}`, {
-      method: 'DELETE',
-    });
+  async deleteLaboratory(code: string, force = false): Promise<{
+    success: boolean;
+    requiresConfirmation?: boolean;
+    assetCount?: number;
+    message?: string;
+  }> {
+    try {
+      return await request<{ success: boolean; message: string }>(
+        `/laboratories/${encodeURIComponent(code)}${force ? '?force=true' : ''}`,
+        {
+          method: 'DELETE',
+        }
+      );
+    } catch (err: any) {
+      if (err?.data?.requiresConfirmation) {
+        return {
+          success: false,
+          requiresConfirmation: true,
+          assetCount: err.data.assetCount ?? 0,
+          message: err.data.message || err.message,
+        };
+      }
+      throw err;
+    }
   },
 
   // System & Reports (Phase 5)

@@ -1264,10 +1264,6 @@ export const DataStore = {
     let labs: any[] = [];
     if (isMongoConnected) {
       labs = await (LaboratoryModel as any).find({}).sort({ code: 1 }).lean();
-      if (labs.length === 0) {
-        await (LaboratoryModel as any).insertMany(DEFAULT_LABORATORIES);
-        labs = await (LaboratoryModel as any).find({}).sort({ code: 1 }).lean();
-      }
     } else {
       labs = [...memoryLaboratories];
     }
@@ -1360,7 +1356,7 @@ export const DataStore = {
   },
 
   async deleteLaboratory(code: string, force: boolean = false) {
-    const upperCode = code.toUpperCase().trim();
+    const upperCode = decodeURIComponent(code).toUpperCase().trim();
     const assets = await this.getAssets(upperCode);
 
     if (assets.length > 0 && !force) {
@@ -1372,22 +1368,21 @@ export const DataStore = {
       };
     }
 
-    if (force && assets.length > 0) {
-      if (isMongoConnected) {
-        await (AssetModel as any).deleteMany({ lab: upperCode });
-        await (LoanModel as any).deleteMany({ lab: upperCode });
-        await (MaintenanceModel as any).deleteMany({ lab: upperCode });
-      } else {
-        memoryAssets = memoryAssets.filter((a) => a.lab?.toUpperCase() !== upperCode);
-        memoryLoans = memoryLoans.filter((l) => l.lab?.toUpperCase() !== upperCode);
-        memoryMaintenance = memoryMaintenance.filter((m) => m.lab?.toUpperCase() !== upperCode);
-      }
-    }
+    const escaped = upperCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const labRegex = new RegExp(`^${escaped}$`, 'i');
 
     if (isMongoConnected) {
-      await (LaboratoryModel as any).findOneAndDelete({ code: upperCode });
+      if (force || assets.length === 0) {
+        await (AssetModel as any).deleteMany({ lab: labRegex });
+        await (LoanModel as any).deleteMany({ lab: labRegex });
+        await (MaintenanceModel as any).deleteMany({ lab: labRegex });
+      }
+      await (LaboratoryModel as any).findOneAndDelete({ code: labRegex });
     }
 
+    memoryAssets = memoryAssets.filter((a) => a.lab?.toUpperCase() !== upperCode);
+    memoryLoans = memoryLoans.filter((l) => l.lab?.toUpperCase() !== upperCode);
+    memoryMaintenance = memoryMaintenance.filter((m) => m.lab?.toUpperCase() !== upperCode);
     memoryLaboratories = memoryLaboratories.filter((l) => l.code.toUpperCase() !== upperCode);
 
     const layoutIdx = LAB_STORAGE_LAYOUTS.findIndex((l) => l.lab.toUpperCase() === upperCode);
@@ -1397,7 +1392,7 @@ export const DataStore = {
 
     return {
       success: true,
-      message: `Laboratory "${upperCode}" and its associated assets have been removed.`,
+      message: `Laboratory "${upperCode}" and its associated records have been removed.`,
     };
   },
 
