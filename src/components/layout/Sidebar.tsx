@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Boxes,
@@ -8,9 +8,10 @@ import {
   FileSpreadsheet,
   Server,
   Building,
-  GraduationCap,
   X,
-  Menu
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 import { Laboratory } from '../../types';
@@ -55,6 +56,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'deployment', label: 'Vercel + Render + Atlas', icon: Server, phaseTag: 'DevOps' },
   ];
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   const handleNavClick = (tab: NavigationTab) => {
     onTabChange(tab);
     if (onCloseMobile) {
@@ -73,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-9 h-9 object-contain rounded-full shadow-xs bg-white p-0.5 border-2 border-blue-900 shrink-0"
           />
           <div className="min-w-0">
-            <h2 className="text-xs font-bold font-kabel tracking-wide text-slate-900 truncate">
+            <h2 className="text-xs font-bold tracking-wide text-slate-900 truncate">
               ACLC College of Manila
             </h2>
             <p className="text-[11px] text-slate-500 font-medium truncate">Laboratory Operations Hub</p>
@@ -176,11 +179,148 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 
+  const desktopContent = (
+    <div className="flex flex-col h-full justify-between">
+      <div>
+        {/* College Header */}
+        <div className={`border-b border-slate-200 bg-slate-50 flex items-center ${isCollapsed ? 'p-3 justify-center' : 'p-3.5 justify-between'}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img
+              src="/assets/aistudio/ACLC_3c4418b0.png"
+              alt="ACLC College of Manila Logo"
+              className="w-8 h-8 object-contain rounded-full shadow-xs bg-white p-0.5 border-2 border-blue-900 shrink-0"
+            />
+            {!isCollapsed && (
+              <div className="min-w-0">
+                <h2 className="text-xs font-bold tracking-wide text-slate-900 truncate">
+                  ACLC Manila
+                </h2>
+                <p className="text-[10px] text-slate-500 font-medium truncate">Operations Hub</p>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-md transition-colors cursor-pointer"
+            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar to widen workspace'}
+          >
+            {isCollapsed ? <PanelLeftOpen className="w-4 h-4 text-blue-700" /> : <PanelLeftClose className="w-4 h-4 text-slate-500" />}
+          </button>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="p-2 space-y-1 bg-white overflow-y-auto">
+          {!isCollapsed && (
+            <p className="px-2.5 pt-2 pb-1 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              System Modules
+            </p>
+          )}
+
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                title={isCollapsed ? `${item.label} (${item.phaseTag})` : undefined}
+                className={`w-full flex items-center ${
+                  isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
+                } rounded-lg text-xs transition-all cursor-pointer relative group ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-950 font-black border border-blue-200 shadow-2xs'
+                    : 'text-slate-700 hover:text-slate-950 hover:bg-slate-100 font-bold border border-transparent'
+                }`}
+              >
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'} min-w-0`}>
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${
+                      isActive ? 'text-blue-700 stroke-[2.5]' : 'text-slate-500 group-hover:text-slate-800'
+                    }`}
+                  />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                </div>
+
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span
+                    className={`${
+                      isCollapsed
+                        ? 'absolute top-1 right-1 w-2 h-2 rounded-full'
+                        : 'text-[10px] font-extrabold px-1.5 py-0.2 rounded-full'
+                    } ${
+                      item.id === 'loans'
+                        ? 'bg-amber-400 text-amber-950 border border-amber-500'
+                        : 'bg-rose-500 text-white'
+                    }`}
+                  >
+                    {!isCollapsed && item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Target Labs or Bottom Collapse Indicator */}
+      {!isCollapsed ? (
+        <div className="p-3 m-2 bg-slate-50 border border-slate-300 rounded-lg text-xs space-y-1.5 shrink-0">
+          <div className="flex items-center justify-between text-slate-800 font-bold">
+            <span className="flex items-center gap-1.5 text-[11px]">
+              <Building className="w-3.5 h-3.5 text-blue-700" />
+              Laboratories ({laboratories.length})
+            </span>
+            {onOpenLabModal && (
+              <button
+                onClick={onOpenLabModal}
+                title="Add or Delete Laboratories"
+                className="text-[10px] font-bold text-blue-700 hover:text-blue-950 hover:underline cursor-pointer"
+              >
+                Manage
+              </button>
+            )}
+          </div>
+          <div className="space-y-1 text-[11px] text-slate-700 max-h-36 overflow-y-auto pr-1">
+            {laboratories.length === 0 ? (
+              <div className="text-slate-500 italic py-1 text-[10px]">No laboratories.</div>
+            ) : (
+              laboratories.map((lab) => (
+                <div key={lab.code} className="flex justify-between items-center">
+                  <span className="font-medium truncate max-w-[120px]" title={`${lab.name} (${lab.roomNumber})`}>
+                    {lab.code}
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 shrink-0 text-[10px]">
+                    {lab.activeUnitsCount !== undefined ? `${lab.activeUnitsCount}u` : `${lab.capacity}u`}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="p-2 flex flex-col items-center border-t border-slate-200">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="p-1.5 text-slate-500 hover:text-blue-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+            title="Expand Sidebar"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
-      {/* 1. Desktop Sidebar (Permanent on lg screens) */}
-      <aside className="w-64 bg-white border-r border-slate-300 hidden lg:flex flex-col shrink-0 select-none shadow-xs">
-        {navContent}
+      {/* 1. Desktop Sidebar (Permanent on lg screens, collapsible to give maximum table width) */}
+      <aside
+        className={`${
+          isCollapsed ? 'w-16' : 'w-60'
+        } bg-white border-r border-slate-300 hidden lg:flex flex-col shrink-0 select-none shadow-xs transition-all duration-150`}
+      >
+        {desktopContent}
       </aside>
 
       {/* 2. Mobile / Tablet Off-Canvas Drawer (When user taps hamburger menu) */}

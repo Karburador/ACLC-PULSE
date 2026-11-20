@@ -194,7 +194,9 @@ export const LoansTracker: React.FC<LoansTrackerProps> = ({
                 <th className="px-3 py-3.5">Date Issued</th>
                 <th className="px-3 py-3.5">Expected Return</th>
                 <th className="px-3 py-3.5">Status</th>
-                <th className="px-4 py-3.5 text-right">Action</th>
+                <th className="px-3 py-3.5 text-center sticky right-0 bg-slate-100 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.12)] z-20 w-[140px] min-w-[140px] border-l border-slate-300">
+                  <div className="font-black text-slate-900 tracking-wider">ACTION</div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -295,7 +297,7 @@ export const LoansTracker: React.FC<LoansTrackerProps> = ({
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-blue-50/95 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.12)] z-10 w-[140px] min-w-[140px] border-l border-slate-200">
                         {!isReturned ? (
                           <button
                             onClick={() => {

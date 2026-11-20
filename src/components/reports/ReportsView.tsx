@@ -151,13 +151,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               className="w-14 h-14 object-contain rounded-full shadow-xs bg-white p-0.5 border-2 border-blue-900 shrink-0"
             />
             <div>
-              <h1 className="text-xl font-bold font-kabel tracking-wider text-[#0A2540]">
+              <h1 className="text-xl font-black tracking-wider text-[#0A2540]">
                 ACLC COLLEGE OF MANILA
               </h1>
-              <p className="text-xs font-bold font-kabel text-slate-800 tracking-wide">
+              <p className="text-xs font-bold text-slate-800 tracking-wide">
                 LABORATORY & FACILITIES INVENTORY AUDIT CERTIFICATE
               </p>
-              <p className="text-[11px] text-slate-600 font-medium font-kabel">
+              <p className="text-[11px] text-slate-600 font-medium">
                 System: ACLC-Pulse Asset Management Engine · Manila Campus
               </p>
             </div>
@@ -250,14 +250,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               Engr. Michael Santos
             </div>
             <div className="text-[11px] text-slate-700 font-semibold">Chief Laboratory Custodian & Network Administrator</div>
-            <div className="text-[10px] text-blue-950 font-kabel font-bold">ACLC College of Manila</div>
+            <div className="text-[10px] text-blue-950 font-bold">ACLC College of Manila</div>
           </div>
           <div>
             <div className="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-900">
               Dean, College of Computer Studies & TVET
             </div>
             <div className="text-[11px] text-slate-700 font-semibold">Academic & Facility Oversight Verification</div>
-            <div className="text-[10px] text-blue-950 font-kabel font-bold">ACLC College of Manila</div>
+            <div className="text-[10px] text-blue-950 font-bold">ACLC College of Manila</div>
           </div>
         </div>
       </div>

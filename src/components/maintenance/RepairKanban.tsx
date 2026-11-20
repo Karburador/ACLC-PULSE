@@ -252,8 +252,8 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
                   className="w-8 sm:w-9 h-8 sm:h-9 object-contain rounded-full bg-white p-0.5 border-2 border-blue-900 shrink-0 shadow-xs"
                 />
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold font-kabel tracking-tight text-blue-950">Log Hardware Issue / Schedule</h3>
-                  <p className="text-[11px] text-slate-600 font-kabel tracking-wide font-medium">ACLC College of Manila · ACLC-Pulse</p>
+                  <h3 className="text-sm sm:text-base font-bold tracking-tight text-blue-950">Log Hardware Issue / Schedule</h3>
+                  <p className="text-[11px] text-slate-600 tracking-wide font-medium">ACLC College of Manila · ACLC-Pulse</p>
                 </div>
               </div>
               <button

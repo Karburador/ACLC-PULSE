@@ -151,10 +151,10 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
               <Building2 className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold font-kabel tracking-tight text-blue-950">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-blue-950">
                 Facility & Laboratory Management
               </h2>
-              <p className="text-xs text-slate-600 font-kabel tracking-wide font-medium">
+              <p className="text-xs text-slate-600 tracking-wide font-medium">
                 ACLC College of Manila · Add, configure, or delete academic laboratories
               </p>
             </div>

@@ -301,8 +301,8 @@ export default function App() {
         />
 
         {/* Main Application Canvas */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 pb-24 lg:pb-6 bg-slate-100">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto p-2.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 bg-slate-100">
+          <div className="w-full max-w-[1680px] mx-auto space-y-6">
             {/* View Switching based on active tab */}
             {activeTab === 'dashboard' && (
               <DashboardOverview

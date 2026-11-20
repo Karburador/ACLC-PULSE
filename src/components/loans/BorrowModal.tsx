@@ -102,8 +102,8 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
               className="w-9 sm:w-10 h-9 sm:h-10 object-contain rounded-full bg-white p-0.5 border-2 border-blue-900 shrink-0 shadow-xs"
             />
             <div>
-              <h2 className="text-sm sm:text-base font-bold font-kabel tracking-tight text-blue-950">Issue & Dispense Asset</h2>
-              <p className="text-[11px] sm:text-xs text-slate-600 font-kabel tracking-wide font-medium">ACLC College of Manila · ACLC-Pulse Dispensing</p>
+              <h2 className="text-sm sm:text-base font-bold tracking-tight text-blue-950">Issue & Dispense Asset</h2>
+              <p className="text-[11px] sm:text-xs text-slate-600 tracking-wide font-medium">ACLC College of Manila · ACLC-Pulse Dispensing</p>
             </div>
           </div>
           <button

@@ -1,14 +1,5 @@
-@import url('https://fonts.cdnfonts.com/css/kabel');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
-
-@theme {
-  --font-kabel: 'Kabel', 'ITC Kabel', 'Kabel Bd BT', 'Century Gothic', sans-serif;
-}
-
-.font-kabel {
-  font-family: 'Kabel', 'ITC Kabel', 'Kabel Bd BT', 'Century Gothic', sans-serif;
-}
 
 @layer base {
   body {

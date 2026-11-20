@@ -60,14 +60,14 @@ export const Header: React.FC<HeaderProps> = ({
           />
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-lg sm:text-2xl font-bold font-kabel tracking-tight text-blue-950 whitespace-nowrap">
+              <span className="text-lg sm:text-2xl font-black tracking-tight text-blue-950 whitespace-nowrap">
                 ACLC-Pulse
               </span>
-              <span className="text-[10px] sm:text-[11px] font-bold text-amber-900 font-kabel tracking-wider bg-amber-100 px-1.5 sm:px-2 py-0.5 rounded border border-amber-400">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-amber-900 tracking-wider bg-amber-100 px-1.5 sm:px-2 py-0.5 rounded border border-amber-400">
                 MANILA
               </span>
             </div>
-            <p className="text-[11px] sm:text-xs text-slate-600 font-kabel tracking-wide leading-none hidden md:block mt-0.5 font-medium">
+            <p className="text-[11px] sm:text-xs text-slate-600 tracking-wide leading-none hidden md:block mt-0.5 font-medium">
               ACLC College of Manila · Laboratory Operations Hub
             </p>
           </div>

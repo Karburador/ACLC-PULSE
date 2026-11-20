@@ -107,13 +107,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             />
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-bold font-kabel uppercase tracking-wider text-blue-900">
+                <span className="text-xs font-black uppercase tracking-wider text-blue-900">
                   ACLC College of Manila
                 </span>
                 <span className="text-slate-400">·</span>
-                <span className="text-xs text-amber-700 font-kabel font-bold">ACLC-Pulse Operations</span>
+                <span className="text-xs text-amber-700 font-bold">ACLC-Pulse Operations</span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold font-kabel tracking-tight text-slate-950">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-950">
                 {currentLab === 'ALL'
                   ? `All Laboratory Facilities (${laboratories.length} Labs · ${metrics.totalAssets} Units Scope)`
                   : `${currentLab} - ${laboratories.find((l) => l.code === currentLab)?.name || currentLab}`}

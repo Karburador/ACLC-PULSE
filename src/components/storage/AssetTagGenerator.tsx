@@ -241,10 +241,10 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
                       className="w-8 h-8 object-contain rounded-full bg-white p-0.5 border-2 border-blue-900 shrink-0 shadow-xs"
                     />
                     <div>
-                      <div className="text-[12px] font-bold font-kabel tracking-wide text-blue-950 leading-tight">
+                      <div className="text-[12px] font-bold tracking-wide text-blue-950 leading-tight">
                         ACLC COLLEGE OF MANILA
                       </div>
-                      <div className="text-[9px] text-amber-800 font-bold font-kabel tracking-wider">
+                      <div className="text-[9px] text-amber-800 font-bold tracking-wider">
                         ACLC-PULSE · LABORATORY PROPERTY
                       </div>
                     </div>

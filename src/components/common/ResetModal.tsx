@@ -63,10 +63,10 @@ export const ResetModal: React.FC<ResetModalProps> = ({
               <RotateCcw className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-base font-bold font-kabel tracking-tight text-slate-950">
+              <h2 className="text-base font-bold tracking-tight text-slate-950">
                 System Reset & Database Purge
               </h2>
-              <p className="text-xs text-slate-600 font-kabel tracking-wide font-medium">
+              <p className="text-xs text-slate-600 tracking-wide font-medium">
                 ACLC College of Manila · Database Operations
               </p>
             </div>
