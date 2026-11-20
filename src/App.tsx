@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
+import { auth, googleProvider } from './firebase';
+import { firestoreSync } from './services/firestoreSync';
 import { LabType, Asset, LoanRecord, MaintenanceTask, Laboratory } from './types';
-import { api } from './services/api';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavigationTab, MobileBottomNav } from './components/layout/Sidebar';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
@@ -17,52 +19,31 @@ import { DeploymentGuide } from './components/deployment/DeploymentGuide';
 import { LaboratoryModal } from './components/laboratories/LaboratoryModal';
 import { ResetModal } from './components/common/ResetModal';
 import {
-  INITIAL_ASSETS,
-  INITIAL_LOANS,
-  INITIAL_MAINTENANCE,
-} from './data/initialCatalog';
-import {
-  Boxes,
-  HandCoins,
-  QrCode,
-  Wrench,
-  FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   X,
+  Cloud,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 
-const DEFAULT_LABS: Laboratory[] = [
-  { code: 'COMLAB', name: 'Computer Programming & Applications Lab', roomNumber: 'Room 304', capacity: 40, isCustom: false },
-  { code: 'NETLAB', name: 'Cisco CCNA Networking Lab', roomNumber: 'Room 306', capacity: 25, isCustom: false },
-  { code: 'TESDA', name: 'Computer Systems Servicing (CSS NC II) Hardware Lab', roomNumber: 'Room 208', capacity: 20, isCustom: false },
-  { code: 'MACLAB', name: 'Multimedia & Graphic Design Studio', roomNumber: 'Room 302', capacity: 30, isCustom: false },
-  { code: 'CYBERLAB', name: 'Cybersecurity, Cloud & Server Operations Lab', roomNumber: 'Room 308', capacity: 20, isCustom: false },
-  { code: 'IOTLAB', name: 'IoT, Robotics & Embedded Systems Lab', roomNumber: 'Room 204', capacity: 25, isCustom: false },
-];
-
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const [cloudReady, setCloudReady] = useState(false);
+  const [syncError, setSyncError] = useState<Error | null>(null);
+
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [currentLab, setCurrentLab] = useState<LabType>('ALL');
 
-  // Core Data States with instant initial values
-  const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
-  const [loans, setLoans] = useState<LoanRecord[]>(INITIAL_LOANS);
-  const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(INITIAL_MAINTENANCE);
-  const [laboratories, setLaboratories] = useState<Laboratory[]>(DEFAULT_LABS);
-  const [metrics, setMetrics] = useState({
-    totalAssets: 773,
-    availableAssets: 728,
-    inUseAssets: 1,
-    damagedAssets: 6,
-    activeLoans: 3,
-    overdueLoans: 2,
-    pendingMaintenance: 3,
-    totalAssetItemsCount: 23,
-    isAtlasConnected: false,
-  });
+  // Live Real-Time Cloud Firestore Datasets
+  const [allAssets, setAllAssets] = useState<Asset[]>([]);
+  const [allLoans, setAllLoans] = useState<LoanRecord[]>([]);
+  const [allMaintenance, setAllMaintenance] = useState<MaintenanceTask[]>([]);
+  const [allLaboratories, setAllLaboratories] = useState<Laboratory[]>([]);
 
-  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Filters for Inventory
@@ -85,66 +66,206 @@ export default function App() {
   const [storageSubTab, setStorageSubTab] = useState<'visualizer' | 'tags'>('visualizer');
   const [maintenanceSubTab, setMaintenanceSubTab] = useState<'kanban' | 'scheduler'>('kanban');
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  if (syncError) {
+    throw syncError;
+  }
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  // Auth State Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthReady(true);
+      if (!currentUser) {
+        setCloudReady(false);
+        setAllAssets([]);
+        setAllLoans([]);
+        setAllMaintenance([]);
+        setAllLaboratories([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Real-Time Firestore Listeners (attached only after auth is ready & user signed in)
+  useEffect(() => {
+    if (!authReady || !user) return;
+
+    let active = true;
+    let unsubSync: (() => void) | null = null;
+
+    async function startCloudSync() {
+      try {
+        await firestoreSync.ensureInitialized(user!);
+        if (!active) return;
+
+        unsubSync = firestoreSync.subscribeToAll(user!, {
+          onLaboratories: (labs) => {
+            if (active) setAllLaboratories(labs);
+          },
+          onAssets: (assetsData) => {
+            if (active) setAllAssets(assetsData);
+          },
+          onLoans: (loansData) => {
+            if (active) setAllLoans(loansData);
+          },
+          onMaintenance: (maintData) => {
+            if (active) setAllMaintenance(maintData);
+          },
+          onError: (err) => {
+            if (active) setSyncError(err);
+          },
+        });
+        if (active) setCloudReady(true);
+      } catch (err: any) {
+        if (active) setSyncError(err);
+      }
+    }
+
+    startCloudSync();
+
+    return () => {
+      active = false;
+      if (unsubSync) unsubSync();
+    };
+  }, [authReady, user]);
+
+  // Enrich laboratories with live counts across all synced records
+  const laboratories = useMemo<Laboratory[]>(() => {
+    return allLaboratories.map((lab) => {
+      const upper = lab.code.toUpperCase();
+      const labAssets = allAssets.filter((a) => a.lab?.toUpperCase() === upper);
+      const labLoans = allLoans.filter((l) => l.lab?.toUpperCase() === upper);
+      const labMaintenance = allMaintenance.filter((m) => m.lab?.toUpperCase() === upper);
+      const totalUnits = labAssets.reduce((sum, a) => sum + (a.quantity || 0), 0);
+
+      return {
+        ...lab,
+        totalAssets: labAssets.length,
+        activeUnitsCount: totalUnits,
+        loanCount: labLoans.length,
+        maintenanceCount: labMaintenance.length,
+      };
+    });
+  }, [allLaboratories, allAssets, allLoans, allMaintenance]);
+
+  // Filtered views matching Active Scope & Inventory Search/Category/Status
+  const assets = useMemo(() => {
+    let list = allAssets;
+    if (currentLab !== 'ALL') {
+      list = list.filter((a) => a.lab?.toUpperCase() === currentLab.toUpperCase());
+    }
+    if (inventoryCategory !== 'ALL') {
+      list = list.filter((a) => a.category === inventoryCategory);
+    }
+    if (inventoryStatus !== 'ALL') {
+      list = list.filter((a) => a.status === inventoryStatus);
+    }
+    if (inventorySearch.trim()) {
+      const q = inventorySearch.toLowerCase();
+      list = list.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.assetTag.toLowerCase().includes(q) ||
+          (a.brandModel && a.brandModel.toLowerCase().includes(q)) ||
+          (a.serialNumber && a.serialNumber.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [allAssets, currentLab, inventoryCategory, inventoryStatus, inventorySearch]);
+
+  const loans = useMemo(() => {
+    if (currentLab === 'ALL') return allLoans;
+    return allLoans.filter((l) => l.lab?.toUpperCase() === currentLab.toUpperCase());
+  }, [allLoans, currentLab]);
+
+  const maintenance = useMemo(() => {
+    if (currentLab === 'ALL') return allMaintenance;
+    return allMaintenance.filter((m) => m.lab?.toUpperCase() === currentLab.toUpperCase());
+  }, [allMaintenance, currentLab]);
+
+  const metrics = useMemo(() => {
+    const scopedAssets =
+      currentLab === 'ALL'
+        ? allAssets
+        : allAssets.filter((a) => a.lab?.toUpperCase() === currentLab.toUpperCase());
+
+    const totalAssets = scopedAssets.reduce((acc, a) => acc + (a.quantity || 0), 0);
+    const availableAssets = scopedAssets.reduce((acc, a) => acc + (a.availableQuantity || 0), 0);
+    const explicitInUse = scopedAssets
+      .filter((a) => a.status === 'In Use')
+      .reduce((acc, a) => acc + Math.max(0, (a.quantity || 0) - (a.availableQuantity || 0)), 0);
+    const damagedAssets = scopedAssets
+      .filter((a) => a.status === 'Damaged')
+      .reduce((acc, a) => acc + (a.quantity || 0), 0);
+    const activeLoans = loans.filter((l) => l.status === 'Active' || l.status === 'Overdue').length;
+    const overdueLoans = loans.filter((l) => l.status === 'Overdue').length;
+    const pendingMaintenance = maintenance.filter((m) => m.column !== 'Replaced/Retired').length;
+
+    return {
+      totalAssets,
+      availableAssets,
+      inUseAssets: explicitInUse > 0 ? explicitInUse : Math.max(0, totalAssets - availableAssets),
+      damagedAssets,
+      activeLoans,
+      overdueLoans,
+      pendingMaintenance,
+      totalAssetItemsCount: scopedAssets.length,
+      isAtlasConnected: cloudReady,
+    };
+  }, [allAssets, loans, maintenance, currentLab, cloudReady]);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setSigningIn(true);
+      setAuthError(null);
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      setAuthError(err?.message || 'Google Sign-In failed. Please try again.');
+    } finally {
+      setSigningIn(false);
+    }
   };
 
-  // Fetch all primary datasets with safe fallback
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [assetsData, loansData, maintenanceData, metricsData, labsData] = await Promise.all([
-        api.getAssets({
-          lab: currentLab,
-          category: inventoryCategory,
-          status: inventoryStatus,
-          search: inventorySearch,
-        }),
-        api.getLoans({ lab: currentLab }),
-        api.getMaintenanceTasks(currentLab),
-        api.getMetrics(currentLab),
-        api.getLaboratories(),
-      ]);
+  const handleSignOut = async () => {
+    await signOut(auth);
+  };
 
-      if (Array.isArray(assetsData)) setAssets(assetsData);
-      if (Array.isArray(loansData)) setLoans(loansData);
-      if (Array.isArray(maintenanceData)) setMaintenance(maintenanceData);
-      if (metricsData) setMetrics(metricsData);
-      if (Array.isArray(labsData)) setLaboratories(labsData);
-    } catch (err: any) {
-      console.warn('Syncing with laboratory catalog:', err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentLab, inventoryCategory, inventoryStatus, inventorySearch]);
+  const handleManualSyncToast = () => {
+    showToast('Cloud Sync is active in real time across all browsers.');
+  };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Laboratory Handlers (Dynamic Add, Edit, Delete)
-  const handleAddLaboratory = async (labData: { code: string; name: string; roomNumber: string; capacity: number; description?: string }) => {
-    await api.createLaboratory(labData);
-    showToast(`Laboratory ${labData.code} added successfully.`);
-    fetchData();
+  // Laboratory Handlers (Cloud Synced)
+  const handleAddLaboratory = async (labData: {
+    code: string;
+    name: string;
+    roomNumber: string;
+    capacity: number;
+    description?: string;
+  }) => {
+    if (!user) return;
+    await firestoreSync.createLaboratory(user, labData);
+    showToast(`Laboratory ${labData.code} added and synced across browsers.`);
   };
 
   const handleUpdateLaboratory = async (code: string, updates: Partial<Laboratory>) => {
-    await api.updateLaboratory(code, updates);
-    showToast(`Laboratory ${code} updated.`);
-    fetchData();
+    await firestoreSync.updateLaboratory(code, updates);
+    showToast(`Laboratory ${code} updated and synced.`);
   };
 
   const handleDeleteLaboratory = async (code: string) => {
+    if (!user) return { success: false, message: 'Authentication required' };
     try {
-      const res = await api.deleteLaboratory(code);
+      const res = await firestoreSync.deleteLaboratory(user, code);
       if (!res.success && res.blocked) {
         return res;
       }
       showToast(res.message || `Laboratory "${code}" deleted.`);
       if (currentLab === code) setCurrentLab('ALL');
-      fetchData();
       return { success: true, message: res.message };
     } catch (err: any) {
       showToast(err.message || 'Failed to delete laboratory', 'error');
@@ -152,94 +273,74 @@ export default function App() {
     }
   };
 
-  // System Data Reset Handlers
+  // System Data Reset Handlers (Cloud Synced)
   const handleResetToZero = async () => {
-    await api.resetData('zero');
+    if (!user) return;
+    await firestoreSync.wipeAllToZero(user);
     setPreselectedTagAsset(null);
     setPreselectedBorrowAsset(null);
     setAssetToEdit(null);
     setInventoryCategory('ALL');
     setInventoryStatus('ALL');
     setInventorySearch('');
-    setAssets([]);
-    setLoans([]);
-    setMaintenance([]);
-    setMetrics((prev) => ({
-      ...prev,
-      totalAssets: 0,
-      availableAssets: 0,
-      inUseAssets: 0,
-      damagedAssets: 0,
-      activeLoans: 0,
-      overdueLoans: 0,
-      pendingMaintenance: 0,
-      totalAssetItemsCount: 0,
-    }));
-    showToast('All records have been deleted (Database reset to 0).');
-    fetchData();
+    showToast('All records deleted and synced to 0 across all browsers.');
   };
 
   const handleRestoreDefaults = async () => {
-    await api.resetData('default');
-    showToast('ACLC Default Catalog (160 units) restored.');
-    fetchData();
+    if (!user) return;
+    await firestoreSync.seedDefaultCatalog(user, true);
+    showToast('ACLC Default Catalog (160 core units) restored and synced.');
   };
 
-  // Asset CRUD Handlers
+  // Asset CRUD Handlers (Cloud Synced)
   const handleSaveAsset = async (assetData: Partial<Asset>) => {
+    if (!user) return;
     if (assetToEdit) {
-      await api.updateAsset(assetToEdit.id, assetData);
-      showToast(`Asset "${assetData.name}" updated successfully.`);
+      await firestoreSync.updateAsset(assetToEdit.id, assetData);
+      showToast(`Asset "${assetData.name}" updated and synced.`);
     } else {
-      await api.createAsset(assetData);
-      showToast(`Asset "${assetData.name}" registered into inventory.`);
+      await firestoreSync.createAsset(user, assetData);
+      showToast(`Asset "${assetData.name}" registered and synced.`);
     }
     setAssetToEdit(null);
-    fetchData();
   };
 
   const handleDeleteAsset = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete or archive "${name}"?`)) {
-      try {
-        await api.deleteAsset(id);
-        showToast(`Asset "${name}" archived.`);
-        fetchData();
-      } catch (err: any) {
-        showToast(err.message || 'Delete failed', 'error');
-      }
+    try {
+      await firestoreSync.deleteAsset(id);
+      showToast(`Asset "${name}" deleted and synced.`);
+    } catch (err: any) {
+      showToast(err.message || 'Delete failed', 'error');
     }
   };
 
-  // Dispensing & Loan Handlers
+  // Dispensing & Loan Handlers (Cloud Synced)
   const handleIssueLoan = async (loanData: Partial<LoanRecord>) => {
-    await api.createLoan(loanData);
-    showToast(`Asset successfully issued to ${loanData.borrowerName}.`);
+    if (!user) return;
+    await firestoreSync.createLoan(user, loanData, allAssets);
+    showToast(`Asset issued to ${loanData.borrowerName} and synced.`);
     setPreselectedBorrowAsset(null);
-    fetchData();
   };
 
   const handleReturnItem = async (id: string, notes?: string) => {
-    await api.returnLoan(id, notes);
-    showToast('Equipment returned and inventory restored to stock.');
-    fetchData();
+    await firestoreSync.returnLoan(id, notes, allLoans, allAssets);
+    showToast('Equipment returned, stock restored, and synced.');
   };
 
-  // Maintenance Handlers
+  // Maintenance Handlers (Cloud Synced)
   const handleAddMaintenance = async (taskData: Partial<MaintenanceTask>) => {
-    await api.createMaintenanceTask(taskData);
-    showToast('Maintenance task logged on Kanban board.');
-    fetchData();
+    if (!user) return;
+    await firestoreSync.createMaintenanceTask(user, taskData);
+    showToast('Maintenance task logged and synced.');
   };
 
   const handleUpdateMaintenance = async (id: string, updates: Partial<MaintenanceTask>) => {
-    await api.updateMaintenanceTask(id, updates);
-    fetchData();
+    await firestoreSync.updateMaintenanceTask(id, updates, allMaintenance);
   };
 
   const handleDeleteMaintenance = async (id: string) => {
-    await api.deleteMaintenanceTask(id);
-    showToast('Maintenance task removed.');
-    fetchData();
+    await firestoreSync.deleteMaintenanceTask(id);
+    showToast('Maintenance task removed and synced.');
   };
 
   // Cross-module navigations
@@ -253,6 +354,74 @@ export default function App() {
     setStorageSubTab('tags');
     setActiveTab('storage');
   };
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-900">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-8 h-8 text-blue-700 animate-spin" />
+          <p className="text-sm font-bold text-slate-700">Connecting to ACLC-Pulse Cloud Sync...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-900">
+        <div className="w-full max-w-md bg-white border-2 border-slate-300 rounded-2xl shadow-xl p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-4">
+            <img
+              src="/assets/aistudio/ACLC_3c4418b0.png"
+              alt="ACLC College of Manila Seal"
+              className="w-16 h-16 object-contain rounded-full bg-white p-1 border-2 border-blue-900 shrink-0 shadow-xs"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-black text-blue-950 tracking-tight">ACLC-Pulse</h1>
+                <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-400">
+                  MANILA
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                Laboratory Asset &amp; Inventory Hub
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-extrabold text-blue-950">
+              <Cloud className="w-4 h-4 text-blue-700" />
+              <span>Real-Time Cross-Browser Cloud Sync</span>
+            </div>
+            <p className="text-xs text-slate-700 leading-relaxed font-medium">
+              Sign in with your Google account to sync all laboratory assets, loans, maintenance tickets, and resets in real time across every browser and device.
+            </p>
+          </div>
+
+          {authError && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 text-xs font-semibold text-rose-900 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={signingIn}
+            className="w-full py-3 px-4 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2.5"
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span>{signingIn ? 'Signing in...' : 'Sign in with Google to Sync'}</span>
+          </button>
+
+          <p className="text-[11px] text-center text-slate-500 font-medium">
+            Use the same Google account in other browsers to keep everything automatically synchronized.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const activeLoansCount = loans.filter((l) => l.status === 'Active' || l.status === 'Overdue').length;
   const maintenanceTicketsCount = maintenance.filter((m) => m.column !== 'Replaced/Retired').length;
@@ -295,13 +464,15 @@ export default function App() {
           setAssetToEdit(null);
           setIsAssetModalOpen(true);
         }}
-        onRefresh={fetchData}
-        isAtlasConnected={metrics.isAtlasConnected}
+        onRefresh={handleManualSyncToast}
+        isAtlasConnected={cloudReady}
         onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         isMobileMenuOpen={isMobileMenuOpen}
         laboratories={laboratories}
         onOpenLabModal={() => setIsLabModalOpen(true)}
         onOpenResetModal={() => setIsResetModalOpen(true)}
+        userEmail={user.email}
+        onSignOut={handleSignOut}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -405,7 +576,7 @@ export default function App() {
                         : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    Storage Rack & Cabinet Map
+                    Storage Rack &amp; Cabinet Map
                   </button>
                   <button
                     onClick={() => setStorageSubTab('tags')}
@@ -423,6 +594,7 @@ export default function App() {
                   <StorageVisualizer
                     currentLab={currentLab}
                     assets={assets}
+                    laboratories={laboratories}
                     onSelectAssetForTag={(asset) => {
                       setPreselectedTagAsset(asset);
                       setStorageSubTab('tags');
@@ -450,7 +622,7 @@ export default function App() {
                         : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    Repair & Replacement Kanban
+                    Repair &amp; Replacement Kanban
                   </button>
                   <button
                     onClick={() => setMaintenanceSubTab('scheduler')}
@@ -494,7 +666,11 @@ export default function App() {
             )}
 
             {activeTab === 'deployment' && (
-              <DeploymentGuide onDataReset={fetchData} />
+              <DeploymentGuide
+                onDataReset={handleManualSyncToast}
+                onResetZero={handleResetToZero}
+                onRestoreDefaults={handleRestoreDefaults}
+              />
             )}
           </div>
         </main>

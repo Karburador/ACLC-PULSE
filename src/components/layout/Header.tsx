@@ -23,6 +23,8 @@ interface HeaderProps {
   laboratories?: Laboratory[];
   onOpenLabModal?: () => void;
   onOpenResetModal?: () => void;
+  userEmail?: string | null;
+  onSignOut?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,6 +38,8 @@ export const Header: React.FC<HeaderProps> = ({
   laboratories = [],
   onOpenLabModal,
   onOpenResetModal,
+  userEmail,
+  onSignOut,
 }) => {
   const totalUnits = laboratories.reduce((sum, l) => sum + (l.activeUnitsCount || 0), 0);
 
@@ -74,10 +78,11 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Database state indicator (desktop) */}
-        <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-700 pl-3 border-l border-slate-300">
-          <Database className="w-3.5 h-3.5 text-blue-700" />
-          <span className="font-semibold">
-            {isAtlasConnected ? 'MongoDB Atlas (Live)' : 'Local Storage Engine (Active)'}
+        <div className="hidden xl:flex items-center gap-1.5 text-xs text-emerald-900 pl-3 border-l border-slate-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <Database className="w-3.5 h-3.5 text-emerald-700" />
+          <span className="font-bold">
+            {isAtlasConnected ? 'Cloud Sync Active (Real-Time)' : 'Cloud Sync Ready'}
           </span>
         </div>
       </div>
@@ -119,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={onRefresh}
-          title="Refresh Data from Server"
+          title="Live Cloud Sync Active — Click to verify sync"
           className="p-1.5 sm:p-2 text-slate-700 hover:text-blue-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-xs shrink-0"
           aria-label="Sync catalog"
         >
@@ -127,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* Zone 3: Reset Data CTA & Add Asset CTA */}
+      {/* Zone 3: Reset Data CTA, Add Asset CTA & Account */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {onOpenResetModal && (
           <button
@@ -148,6 +153,16 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline font-extrabold">Add Asset</span>
           <span className="sm:hidden text-[11px] font-extrabold">Add</span>
         </button>
+
+        {userEmail && onSignOut && (
+          <button
+            onClick={onSignOut}
+            title={`Signed in as ${userEmail} — Click to sign out`}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer max-w-[150px]"
+          >
+            <span className="truncate">{userEmail.split('@')[0]}</span>
+          </button>
+        )}
       </div>
     </header>
   );

@@ -1,0 +1,382 @@
+{
+  "entities": {
+    "Laboratory": {
+      "title": "Laboratory",
+      "description": "Academic laboratory facility room and capacity configuration",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "roomNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "capacity": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "isCustom": {
+          "type": "boolean"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["code", "name", "roomNumber", "capacity", "isCustom", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Laboratory hardware, tool, peripheral, or consumable asset record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "assetTag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Computers", "Routers", "Tools", "Projectors", "Peripherals", "Consumables"]
+        },
+        "lab": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9_-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Available", "In Use", "Under Maintenance", "Damaged", "Archived"]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "availableQuantity": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "serialNumber": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "brandModel": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "specs": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "storageLocation": {
+          "type": "object"
+        },
+        "acquisitionDate": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "lastMaintained": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "assetTag", "name", "category", "lab", "status", "quantity", "availableQuantity", "unit", "storageLocation", "ownerId", "createdAt", "updatedAt"]
+    },
+    "LoanRecord": {
+      "title": "LoanRecord",
+      "description": "Equipment borrowing and return circulation record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "borrowerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "borrowerIdNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "borrowerRole": {
+          "type": "string",
+          "enum": ["Student", "Faculty", "Staff", "TESDA Scholar"]
+        },
+        "departmentSection": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "assetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "assetTag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "assetName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "lab": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9_-]+$"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "dateBorrowed": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "expectedReturnDate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "dateReturned": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Returned", "Overdue"]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "issuedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "returnedNotes": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "borrowerName", "borrowerIdNumber", "borrowerRole", "departmentSection", "assetId", "assetTag", "assetName", "lab", "quantity", "dateBorrowed", "expectedReturnDate", "status", "purpose", "issuedBy", "ownerId", "createdAt", "updatedAt"]
+    },
+    "MaintenanceTask": {
+      "title": "MaintenanceTask",
+      "description": "Preventive maintenance and hardware repair Kanban ticket",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "assetId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "assetTag": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "lab": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9_-]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Routine Preventive", "PC Re-imaging", "Network Audit", "Hardware Repair", "Safety Inspection"]
+        },
+        "column": {
+          "type": "string",
+          "enum": ["Reported", "Diagnosed", "Under Repair", "Replaced/Retired"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "scheduledDate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "assignedTechnician": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "diagnosis": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "costEstimate": {
+          "type": "number"
+        },
+        "completedDate": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "lab", "type", "column", "priority", "scheduledDate", "assignedTechnician", "description", "ownerId", "createdAt", "updatedAt"]
+    },
+    "SystemMeta": {
+      "title": "SystemMeta",
+      "description": "Shared cloud database initialization and reset-state marker",
+      "type": "object",
+      "properties": {
+        "initialized": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["default", "zero"]
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["initialized", "mode", "ownerId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/laboratories/{labCode}": {
+      "schema": { "$ref": "#/entities/Laboratory" },
+      "description": "Configured academic laboratories synced across browsers"
+    },
+    "/assets/{assetId}": {
+      "schema": { "$ref": "#/entities/Asset" },
+      "description": "Laboratory inventory assets synced in real time"
+    },
+    "/loans/{loanId}": {
+      "schema": { "$ref": "#/entities/LoanRecord" },
+      "description": "Equipment borrowing and return ledger synced across browsers"
+    },
+    "/maintenance/{taskId}": {
+      "schema": { "$ref": "#/entities/MaintenanceTask" },
+      "description": "Repair Kanban and scheduled maintenance tasks synced in real time"
+    },
+    "/system_meta/{metaId}": {
+      "schema": { "$ref": "#/entities/SystemMeta" },
+      "description": "System initialization state preventing re-seeding after Reset to 0"
+    }
+  }
+}

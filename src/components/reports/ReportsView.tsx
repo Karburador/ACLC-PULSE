@@ -1,6 +1,5 @@
 import React from 'react';
 import { Asset, LoanRecord, MaintenanceTask, LabType } from '../../types';
-import { api } from '../../services/api';
 import {
   Download,
   Printer,
@@ -11,6 +10,24 @@ interface ReportsViewProps {
   loans: LoanRecord[];
   maintenance: MaintenanceTask[];
   currentLab: LabType;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+  const escape = (val: string | number) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+  const csv = [
+    headers.map(escape).join(','),
+    ...rows.map((r) => r.map(escape).join(',')),
+  ].join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -24,11 +41,67 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   const handleDownloadInventoryCsv = () => {
-    window.open(api.getExportUrl('inventory', currentLab), '_blank');
+    const headers = [
+      'Asset Tag',
+      'Item Name',
+      'Category',
+      'Lab',
+      'Status',
+      'Total Qty',
+      'Available Qty',
+      'Unit',
+      'Cabinet/Rack',
+      'Shelf',
+      'Serial Number',
+      'Brand/Model',
+    ];
+    const rows = assets.map((a) => [
+      a.assetTag,
+      a.name,
+      a.category,
+      a.lab,
+      a.status,
+      a.quantity,
+      a.availableQuantity,
+      a.unit || 'units',
+      a.storageLocation?.rackOrCabinet || '',
+      a.storageLocation?.shelf || '',
+      a.serialNumber || '',
+      a.brandModel || '',
+    ]);
+    downloadCsv(`ACLC-Pulse-Inventory-${Date.now()}.csv`, headers, rows);
   };
 
   const handleDownloadLoansCsv = () => {
-    window.open(api.getExportUrl('borrowers', currentLab), '_blank');
+    const headers = [
+      'Loan ID',
+      'Borrower Name',
+      'ID Number',
+      'Role',
+      'Department/Section',
+      'Asset Tag',
+      'Asset Name',
+      'Lab',
+      'Qty',
+      'Date Borrowed',
+      'Expected Return',
+      'Status',
+    ];
+    const rows = loans.map((l) => [
+      l.id,
+      l.borrowerName,
+      l.borrowerIdNumber,
+      l.borrowerRole,
+      l.departmentSection,
+      l.assetTag,
+      l.assetName,
+      l.lab,
+      l.quantity,
+      l.dateBorrowed,
+      l.expectedReturnDate,
+      l.status,
+    ]);
+    downloadCsv(`ACLC-Pulse-Borrowers-${Date.now()}.csv`, headers, rows);
   };
 
   const totalAssetsCount = assets.reduce((s, a) => s + (a.quantity || 1), 0);

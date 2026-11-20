@@ -277,11 +277,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* Quick Action Bar & System Status */}
       <div className="bg-white border-2 border-slate-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-700 shadow-xs">
         <div className="flex items-center gap-2">
-          <Server className="w-4 h-4 text-blue-700" />
+          <Server className="w-4 h-4 text-emerald-700" />
           <span>
             Storage Engine:{' '}
             <strong className="text-slate-950">
-              {metrics.isAtlasConnected ? 'MongoDB Atlas (Render Cloud Ready)' : 'Local High-Speed Seed Engine'}
+              {metrics.isAtlasConnected ? 'Firebase Cloud Firestore (Real-Time Cross-Browser Sync)' : 'Connecting to Cloud Sync...'}
             </strong>
           </span>
           <span className="text-slate-400">·</span>

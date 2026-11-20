@@ -13,9 +13,15 @@ import {
 
 interface DeploymentGuideProps {
   onDataReset: () => void;
+  onResetZero?: () => Promise<void>;
+  onRestoreDefaults?: () => Promise<void>;
 }
 
-export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset }) => {
+export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({
+  onDataReset,
+  onResetZero,
+  onRestoreDefaults,
+}) => {
   const [healthData, setHealthData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
@@ -44,13 +50,15 @@ export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset })
   };
 
   const handleResetCatalog = async () => {
-    if (!window.confirm('Restore the ACLC default laboratory catalog (160 units across standard labs)?')) {
-      return;
-    }
     try {
       setResetting(true);
-      const res = await api.resetData('default');
-      setResetMessage(res.message);
+      if (onRestoreDefaults) {
+        await onRestoreDefaults();
+        setResetMessage('ACLC Default Catalog (160 core units) restored across Cloud Sync.');
+      } else {
+        const res = await api.resetData('default');
+        setResetMessage(res.message);
+      }
       onDataReset();
       setTimeout(() => setResetMessage(null), 4000);
     } finally {
@@ -59,13 +67,15 @@ export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset })
   };
 
   const handleWipeZero = async () => {
-    if (!window.confirm('ARE YOU SURE? This will delete all assets, borrow loans, and maintenance tickets, resetting all inventory data to 0.')) {
-      return;
-    }
     try {
       setResetting(true);
-      const res = await api.resetData('zero');
-      setResetMessage(res.message);
+      if (onResetZero) {
+        await onResetZero();
+        setResetMessage('All records deleted (reset to 0) across Cloud Sync.');
+      } else {
+        const res = await api.resetData('zero');
+        setResetMessage(res.message);
+      }
       onDataReset();
       setTimeout(() => setResetMessage(null), 4000);
     } finally {

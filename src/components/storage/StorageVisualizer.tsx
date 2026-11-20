@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Asset, LabStorageLayout, LabType } from '../../types';
-import { api } from '../../services/api';
+import React, { useState, useMemo } from 'react';
+import { Asset, LabStorageLayout, LabType, Laboratory } from '../../types';
+import { DEFAULT_STORAGE_LAYOUTS } from '../../data/storageLayouts';
 import {
   Server,
   Tag,
@@ -9,33 +9,55 @@ import {
 interface StorageVisualizerProps {
   currentLab: LabType;
   assets: Asset[];
+  laboratories?: Laboratory[];
   onSelectAssetForTag?: (asset: Asset) => void;
 }
 
 export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
   currentLab,
   assets,
+  laboratories = [],
   onSelectAssetForTag,
 }) => {
-  const [layouts, setLayouts] = useState<LabStorageLayout[]>([]);
-  const [selectedCabinetId, setSelectedCabinetId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const layouts = useMemo<LabStorageLayout[]>(() => {
+    const knownCodes = new Set(DEFAULT_STORAGE_LAYOUTS.map((l) => l.lab.toUpperCase()));
+    const dynamicLabs: LabStorageLayout[] = laboratories
+      .filter((lab) => !knownCodes.has(lab.code.toUpperCase()))
+      .map((lab) => ({
+        lab: lab.code,
+        name: `${lab.name} (${lab.roomNumber})`,
+        roomNumber: lab.roomNumber,
+        totalCapacityUnits: lab.capacity,
+        activeUnitsCount: lab.activeUnitsCount || 0,
+        cabinets: [
+          {
+            id: `cabinet-${lab.code.toLowerCase()}-1`,
+            name: `Cabinet ${lab.code}-A`,
+            description: `Primary equipment and tools cabinet for ${lab.name}`,
+            shelves: [
+              { id: `shelf-${lab.code.toLowerCase()}-1`, label: 'Shelf 1 - Primary Equipment', assignedCategory: 'Computers' },
+              { id: `shelf-${lab.code.toLowerCase()}-2`, label: 'Shelf 2 - Tools & Hardware', assignedCategory: 'Tools' },
+              { id: `shelf-${lab.code.toLowerCase()}-3`, label: 'Shelf 3 - Consumables & Accessories', assignedCategory: 'Consumables' },
+            ],
+          },
+        ],
+      }));
 
-  useEffect(() => {
-    async function loadLayouts() {
-      try {
-        setLoading(true);
-        const data = await api.getStorageLayouts(currentLab);
-        setLayouts(data);
-        if (data.length > 0 && data[0].cabinets.length > 0) {
-          setSelectedCabinetId(data[0].cabinets[0].id);
-        }
-      } finally {
-        setLoading(false);
-      }
+    // Keep default layouts only for existing labs (if labs are populated)
+    const activeCodes = new Set(laboratories.map((l) => l.code.toUpperCase()));
+    const baseLayouts =
+      laboratories.length > 0
+        ? DEFAULT_STORAGE_LAYOUTS.filter((l) => activeCodes.has(l.lab.toUpperCase()))
+        : DEFAULT_STORAGE_LAYOUTS;
+
+    const combined = [...baseLayouts, ...dynamicLabs];
+    if (currentLab && currentLab !== 'ALL') {
+      return combined.filter((l) => l.lab.toUpperCase() === currentLab.toUpperCase());
     }
-    loadLayouts();
-  }, [currentLab]);
+    return combined;
+  }, [currentLab, laboratories]);
+
+  const [selectedCabinetId, setSelectedCabinetId] = useState<string>('');
 
   // Find all cabinets across loaded layouts
   const allCabinets = layouts.flatMap((l) =>
