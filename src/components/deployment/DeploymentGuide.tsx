@@ -44,7 +44,7 @@ export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset })
   };
 
   const handleResetCatalog = async () => {
-    if (!window.confirm('I-restore ang ACLC default laboratory catalog (160 units across standard labs)?')) {
+    if (!window.confirm('Restore the ACLC default laboratory catalog (160 units across standard labs)?')) {
       return;
     }
     try {
@@ -59,7 +59,7 @@ export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({ onDataReset })
   };
 
   const handleWipeZero = async () => {
-    if (!window.confirm('SIGURADO KA BA? Buburahin lahat ng assets, borrow loans, at maintenance tickets para MAGING 0 LAHAT ang data ng inventory.')) {
+    if (!window.confirm('ARE YOU SURE? This will delete all assets, borrow loans, and maintenance tickets, resetting all inventory data to 0.')) {
       return;
     }
     try {
@@ -103,7 +103,7 @@ CLIENT_URL="https://aclc-pulse.vercel.app"`;
             onClick={handleWipeZero}
             disabled={resetting}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-700 hover:text-white bg-red-50 hover:bg-red-600 border border-red-300 hover:border-red-600 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Delete lahat ng data para back to 0"
+            title="Delete all data and reset to 0"
           >
             <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>{resetting ? 'Processing...' : 'Reset to 0 (Wipe)'}</span>
@@ -112,7 +112,7 @@ CLIENT_URL="https://aclc-pulse.vercel.app"`;
             onClick={handleResetCatalog}
             disabled={resetting}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Ibalik ang ACLC default 160 units"
+            title="Restore ACLC default 160 units"
           >
             <RotateCcw className="w-3.5 h-3.5 text-blue-700 stroke-[2.5]" />
             <span>{resetting ? 'Processing...' : 'Restore Demo (160 Units)'}</span>

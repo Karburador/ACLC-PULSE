@@ -11,10 +11,10 @@ export const getMetrics = async (req: Request, res: Response) => {
   }
 };
 
-export const getStorageLayouts = (req: Request, res: Response) => {
+export const getStorageLayouts = async (req: Request, res: Response) => {
   try {
     const { lab } = req.query as { lab?: string };
-    const layouts = DataStore.getStorageLayouts(lab);
+    const layouts = await DataStore.getStorageLayouts(lab);
     res.json({ success: true, data: layouts });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -24,6 +24,7 @@ export const getStorageLayouts = (req: Request, res: Response) => {
 export const getSystemHealth = async (_req: Request, res: Response) => {
   try {
     const isAtlas = DataStore.isAtlasConnected();
+    const labs = await DataStore.getLaboratories();
     res.json({
       success: true,
       data: {
@@ -32,14 +33,9 @@ export const getSystemHealth = async (_req: Request, res: Response) => {
         status: 'Operational',
         databaseMode: isAtlas ? 'MongoDB Atlas (Production)' : 'Local High-Speed Fallback (Preview/Offline Ready)',
         mongoUriConfigured: isValidMongoUri(process.env.MONGO_URI),
-        labsManaged: [
-          'COMLAB (40 units - Room 304)',
-          'NETLAB (25 units - Room 306)',
-          'TESDA Hardware Lab (20 units - Room 208)',
-          'MACLAB (30 units - Room 302)',
-          'CYBERLAB (20 units - Room 308)',
-          'IOTLAB (25 units - Room 204)',
-        ],
+        labsManaged: labs.map(
+          (l: any) => `${l.code} (${l.activeUnitsCount || 0} units - ${l.roomNumber})`
+        ),
       },
     });
   } catch (error: any) {

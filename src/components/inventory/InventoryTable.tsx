@@ -289,15 +289,15 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                   <td colSpan={9} className="px-4 py-12 text-center text-slate-600 bg-white">
                     <div className="max-w-xs mx-auto space-y-2">
                       <Package className="w-9 h-9 text-slate-400 mx-auto stroke-1" />
-                      <p className="text-sm font-bold text-slate-900">Walang asset na tumutugma sa filter</p>
+                      <p className="text-sm font-bold text-slate-900">No assets match the current filter</p>
                       <p className="text-xs text-slate-500">
-                        Subukang baguhin ang iyong search query, laboratory filter, o category selection.
+                        Try adjusting your search query, laboratory filter, or category selection.
                       </p>
                       <button
                         onClick={onAddNewAsset}
                         className="mt-2 inline-flex items-center gap-1 text-xs text-blue-700 hover:underline font-bold cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Mag-register ng bagong asset
+                        <Plus className="w-3.5 h-3.5" /> Register a new asset
                       </button>
                     </div>
                   </td>

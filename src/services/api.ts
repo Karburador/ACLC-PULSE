@@ -198,26 +198,30 @@ export const api = {
     return res.data;
   },
 
-  async deleteLaboratory(code: string, force = false): Promise<{
+  async deleteLaboratory(code: string): Promise<{
     success: boolean;
-    requiresConfirmation?: boolean;
+    blocked?: boolean;
     assetCount?: number;
+    loanCount?: number;
+    maintenanceCount?: number;
     message?: string;
   }> {
     try {
       return await request<{ success: boolean; message: string }>(
-        `/laboratories/${encodeURIComponent(code)}${force ? '?force=true' : ''}`,
+        `/laboratories/${encodeURIComponent(code)}`,
         {
           method: 'DELETE',
         }
       );
     } catch (err: any) {
-      if (err?.data?.requiresConfirmation) {
+      if (err?.data?.blocked || err?.status === 409) {
         return {
           success: false,
-          requiresConfirmation: true,
-          assetCount: err.data.assetCount ?? 0,
-          message: err.data.message || err.message,
+          blocked: true,
+          assetCount: err.data?.assetCount ?? 0,
+          loanCount: err.data?.loanCount ?? 0,
+          maintenanceCount: err.data?.maintenanceCount ?? 0,
+          message: err.data?.message || err.message,
         };
       }
       throw err;

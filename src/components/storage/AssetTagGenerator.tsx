@@ -171,7 +171,8 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+            disabled={!activeAsset}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm cursor-pointer whitespace-nowrap"
           >
             <Printer className="w-4 h-4 stroke-[3]" />
             <span>Print Label</span>
@@ -188,33 +189,39 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
           </div>
 
           <div className="space-y-1.5 max-h-[460px] overflow-y-auto pr-1">
-            {assets.map((asset) => {
-              const isSelected = activeAsset?.id === asset.id;
-              return (
-                <button
-                  key={asset.id}
-                  onClick={() => setActiveAssetId(asset.id)}
-                  className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-blue-50 border-blue-600 text-blue-950 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-black text-blue-900">
-                      {asset.assetTag}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
-                      {asset.lab}
-                    </span>
-                  </div>
-                  <div className="text-xs font-bold text-slate-900 truncate mt-1">{asset.name}</div>
-                  <div className="text-[11px] text-slate-500 truncate font-medium">
-                    {asset.storageLocation?.rackOrCabinet} · {asset.storageLocation?.shelf}
-                  </div>
-                </button>
-              );
-            })}
+            {assets.length === 0 ? (
+              <div className="py-10 text-center text-xs text-slate-500 font-medium">
+                No equipment registered. Add assets to generate printable tags.
+              </div>
+            ) : (
+              assets.map((asset) => {
+                const isSelected = activeAsset?.id === asset.id;
+                return (
+                  <button
+                    key={asset.id}
+                    onClick={() => setActiveAssetId(asset.id)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-blue-50 border-blue-600 text-blue-950 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-black text-blue-900">
+                        {asset.assetTag}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
+                        {asset.lab}
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 truncate mt-1">{asset.name}</div>
+                    <div className="text-[11px] text-slate-500 truncate font-medium">
+                      {asset.storageLocation?.rackOrCabinet} · {asset.storageLocation?.shelf}
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 

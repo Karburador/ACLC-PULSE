@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MaintenanceTask, KanbanColumn, LabType, LabFacility, Asset } from '../../types';
+import { MaintenanceTask, KanbanColumn, LabType, LabFacility, Asset, Laboratory } from '../../types';
 import {
   Wrench,
   Plus,
@@ -14,6 +14,7 @@ interface RepairKanbanProps {
   tasks: MaintenanceTask[];
   currentLab: LabType;
   assets: Asset[];
+  laboratories?: Laboratory[];
   onAddTask: (task: Partial<MaintenanceTask>) => Promise<void>;
   onUpdateTask: (id: string, updates: Partial<MaintenanceTask>) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
@@ -23,6 +24,7 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
   tasks,
   currentLab,
   assets,
+  laboratories = [],
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -289,12 +291,15 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
                     onChange={(e) => setNewTaskLab(e.target.value as LabFacility)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer font-medium"
                   >
-                    <option value="COMLAB">COMLAB (40 Units)</option>
-                    <option value="NETLAB">NETLAB (25 Units)</option>
-                    <option value="TESDA">TESDA Hardware Lab (20 Units)</option>
-                    <option value="MACLAB">MACLAB (30 Units)</option>
-                    <option value="CYBERLAB">CYBERLAB (20 Units)</option>
-                    <option value="IOTLAB">IOTLAB (25 Units)</option>
+                    {laboratories.length > 0 ? (
+                      laboratories.map((lab) => (
+                        <option key={lab.code} value={lab.code}>
+                          {lab.code} ({lab.activeUnitsCount ?? 0} Units)
+                        </option>
+                      ))
+                    ) : (
+                      <option value={newTaskLab}>{newTaskLab}</option>
+                    )}
                   </select>
                 </div>
 

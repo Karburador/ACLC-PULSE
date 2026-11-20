@@ -42,14 +42,15 @@ export const updateLaboratory = async (req: Request, res: Response) => {
 export const deleteLaboratory = async (req: Request, res: Response) => {
   try {
     const { code } = req.params;
-    const force = req.query.force === 'true' || req.body?.force === true;
-    const result = await DataStore.deleteLaboratory(code, force);
+    const result = await DataStore.deleteLaboratory(code);
 
-    if (!result.success && result.requiresConfirmation) {
+    if (!result.success && result.blocked) {
       return res.status(409).json({
         success: false,
-        requiresConfirmation: true,
+        blocked: true,
         assetCount: result.assetCount,
+        loanCount: result.loanCount,
+        maintenanceCount: result.maintenanceCount,
         message: result.message,
         error: result.message,
       });

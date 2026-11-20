@@ -1225,11 +1225,22 @@ export const DataStore = {
   },
 
   // STORAGE LAYOUTS
-  getStorageLayouts(lab?: string) {
-    if (lab && lab !== 'ALL') {
-      return LAB_STORAGE_LAYOUTS.filter((l) => l.lab === lab);
-    }
-    return LAB_STORAGE_LAYOUTS;
+  async getStorageLayouts(lab?: string) {
+    const assets = await this.getAssets();
+    const layouts =
+      lab && lab !== 'ALL'
+        ? LAB_STORAGE_LAYOUTS.filter((l) => l.lab === lab)
+        : LAB_STORAGE_LAYOUTS;
+
+    return layouts.map((layout) => {
+      const labUnits = assets
+        .filter((a: any) => a.lab?.toUpperCase() === layout.lab.toUpperCase())
+        .reduce((sum: number, a: any) => sum + (a.quantity || 0), 0);
+      return {
+        ...layout,
+        activeUnitsCount: labUnits,
+      };
+    });
   },
 
   // SUMMARY AUDIT & METRICS
@@ -1268,10 +1279,18 @@ export const DataStore = {
       labs = [...memoryLaboratories];
     }
 
-    // Enrich with live counts from current assets
-    const assets = await this.getAssets();
+    // Enrich with live counts from current assets, loans, and maintenance tickets
+    const [assets, loans, maintenance] = await Promise.all([
+      this.getAssets(),
+      this.getLoans(),
+      this.getMaintenanceTasks(),
+    ]);
+
     return labs.map((l: any) => {
-      const labAssets = assets.filter((a: any) => a.lab?.toUpperCase() === l.code?.toUpperCase());
+      const upper = l.code?.toUpperCase();
+      const labAssets = assets.filter((a: any) => a.lab?.toUpperCase() === upper);
+      const labLoans = loans.filter((ln: any) => ln.lab?.toUpperCase() === upper);
+      const labMaintenance = maintenance.filter((m: any) => m.lab?.toUpperCase() === upper);
       const totalUnits = labAssets.reduce((sum: number, a: any) => sum + (a.quantity || 0), 0);
       const availableUnits = labAssets.reduce((sum: number, a: any) => sum + (a.availableQuantity || 0), 0);
       return {
@@ -1280,6 +1299,8 @@ export const DataStore = {
         totalAssets: labAssets.length,
         activeUnitsCount: totalUnits,
         availableUnitsCount: availableUnits,
+        loanCount: labLoans.length,
+        maintenanceCount: labMaintenance.length,
       };
     });
   },
@@ -1355,34 +1376,47 @@ export const DataStore = {
     throw new Error(`Laboratory "${code}" not found.`);
   },
 
-  async deleteLaboratory(code: string, force: boolean = false) {
+  async deleteLaboratory(code: string) {
     const upperCode = decodeURIComponent(code).toUpperCase().trim();
-    const assets = await this.getAssets(upperCode);
-
-    if (assets.length > 0 && !force) {
-      return {
-        success: false,
-        requiresConfirmation: true,
-        assetCount: assets.length,
-        message: `Laboratory "${upperCode}" has ${assets.length} registered asset item(s). Confirm force delete to remove the lab and its items.`,
-      };
-    }
-
     const escaped = upperCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const labRegex = new RegExp(`^${escaped}$`, 'i');
 
+    let assetCount = 0;
+    let loanCount = 0;
+    let maintenanceCount = 0;
+
     if (isMongoConnected) {
-      if (force || assets.length === 0) {
-        await (AssetModel as any).deleteMany({ lab: labRegex });
-        await (LoanModel as any).deleteMany({ lab: labRegex });
-        await (MaintenanceModel as any).deleteMany({ lab: labRegex });
-      }
+      [assetCount, loanCount, maintenanceCount] = await Promise.all([
+        (AssetModel as any).countDocuments({ lab: labRegex }),
+        (LoanModel as any).countDocuments({ lab: labRegex }),
+        (MaintenanceModel as any).countDocuments({ lab: labRegex }),
+      ]);
+    } else {
+      assetCount = memoryAssets.filter((a) => a.lab?.toUpperCase() === upperCode).length;
+      loanCount = memoryLoans.filter((l) => l.lab?.toUpperCase() === upperCode).length;
+      maintenanceCount = memoryMaintenance.filter((m) => m.lab?.toUpperCase() === upperCode).length;
+    }
+
+    if (assetCount > 0 || loanCount > 0 || maintenanceCount > 0) {
+      const parts: string[] = [];
+      if (assetCount > 0) parts.push(`${assetCount} asset(s)`);
+      if (loanCount > 0) parts.push(`${loanCount} loan record(s)`);
+      if (maintenanceCount > 0) parts.push(`${maintenanceCount} maintenance ticket(s)`);
+
+      return {
+        success: false,
+        blocked: true,
+        assetCount,
+        loanCount,
+        maintenanceCount,
+        message: `Security Block: Cannot delete "${upperCode}" because it still contains ${parts.join(', ')}. Please delete or transfer all records before removing this laboratory.`,
+      };
+    }
+
+    if (isMongoConnected) {
       await (LaboratoryModel as any).findOneAndDelete({ code: labRegex });
     }
 
-    memoryAssets = memoryAssets.filter((a) => a.lab?.toUpperCase() !== upperCode);
-    memoryLoans = memoryLoans.filter((l) => l.lab?.toUpperCase() !== upperCode);
-    memoryMaintenance = memoryMaintenance.filter((m) => m.lab?.toUpperCase() !== upperCode);
     memoryLaboratories = memoryLaboratories.filter((l) => l.code.toUpperCase() !== upperCode);
 
     const layoutIdx = LAB_STORAGE_LAYOUTS.findIndex((l) => l.lab.toUpperCase() === upperCode);
@@ -1392,7 +1426,7 @@ export const DataStore = {
 
     return {
       success: true,
-      message: `Laboratory "${upperCode}" and its associated records have been removed.`,
+      message: `Laboratory "${upperCode}" has been safely removed.`,
     };
   },
 

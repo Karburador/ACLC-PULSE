@@ -164,7 +164,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
           <div className="text-right text-xs">
             <div className="font-extrabold text-[#0A2540]">
-              Audit Scope: {currentLab === 'ALL' ? 'All Laboratories (85 Units)' : currentLab}
+              Audit Scope:{' '}
+              {currentLab === 'ALL'
+                ? `All Laboratories (${totalAssetsCount} Units)`
+                : `${currentLab} (${totalAssetsCount} Units)`}
             </div>
             <div className="text-slate-600 font-mono text-[11px] font-semibold">
               Generated: {new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}
@@ -190,17 +193,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {assets.slice(0, 10).map((a) => (
-                <tr key={a.id} className="text-slate-900 font-medium">
-                  <td className="p-2 font-mono font-bold text-[#0A2540]">{a.assetTag}</td>
-                  <td className="p-2 font-bold">{a.name}</td>
-                  <td className="p-2">{a.lab}</td>
-                  <td className="p-2">{a.category}</td>
-                  <td className="p-2 text-right font-mono font-bold text-emerald-800">{a.availableQuantity}</td>
-                  <td className="p-2 text-right font-mono font-bold">{a.quantity}</td>
-                  <td className="p-2 font-semibold">{a.status}</td>
+              {assets.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-4 text-center text-slate-500 italic">
+                    No laboratory assets recorded.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                assets.slice(0, 10).map((a) => (
+                  <tr key={a.id} className="text-slate-900 font-medium">
+                    <td className="p-2 font-mono font-bold text-[#0A2540]">{a.assetTag}</td>
+                    <td className="p-2 font-bold">{a.name}</td>
+                    <td className="p-2">{a.lab}</td>
+                    <td className="p-2">{a.category}</td>
+                    <td className="p-2 text-right font-mono font-bold text-emerald-800">{a.availableQuantity}</td>
+                    <td className="p-2 text-right font-mono font-bold">{a.quantity}</td>
+                    <td className="p-2 font-semibold">{a.status}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
           {assets.length > 10 && (
@@ -228,17 +239,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {loans.filter((l) => l.status !== 'Returned').map((l) => (
-                <tr key={l.id} className="text-slate-900 font-medium">
-                  <td className="p-2 font-bold">{l.borrowerName}</td>
-                  <td className="p-2 font-mono font-semibold">{l.borrowerIdNumber}</td>
-                  <td className="p-2">{l.departmentSection}</td>
-                  <td className="p-2 font-semibold">{l.assetName} ({l.assetTag})</td>
-                  <td className="p-2 text-right font-mono font-bold">{l.quantity}</td>
-                  <td className="p-2 font-mono font-semibold">{l.expectedReturnDate}</td>
-                  <td className="p-2 font-bold text-blue-900">{l.status}</td>
+              {loans.filter((l) => l.status !== 'Returned').length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-4 text-center text-slate-500 italic">
+                    No active equipment loans recorded.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                loans.filter((l) => l.status !== 'Returned').map((l) => (
+                  <tr key={l.id} className="text-slate-900 font-medium">
+                    <td className="p-2 font-bold">{l.borrowerName}</td>
+                    <td className="p-2 font-mono font-semibold">{l.borrowerIdNumber}</td>
+                    <td className="p-2">{l.departmentSection}</td>
+                    <td className="p-2 font-semibold">{l.assetName} ({l.assetTag})</td>
+                    <td className="p-2 text-right font-mono font-bold">{l.quantity}</td>
+                    <td className="p-2 font-mono font-semibold">{l.expectedReturnDate}</td>
+                    <td className="p-2 font-bold text-blue-900">{l.status}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -246,17 +265,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         {/* Official Sign-off Section */}
         <div className="pt-8 border-t-2 border-slate-300 grid grid-cols-2 gap-8 text-xs">
           <div>
-            <div className="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-900">
-              Engr. Michael Santos
+            <div className="border-b border-slate-400 pb-4 mb-1 font-bold text-slate-900">
+              Prepared By: ____________________________
             </div>
-            <div className="text-[11px] text-slate-700 font-semibold">Chief Laboratory Custodian & Network Administrator</div>
+            <div className="text-[11px] text-slate-700 font-semibold">Laboratory Custodian &amp; Network Administrator</div>
             <div className="text-[10px] text-blue-950 font-bold">ACLC College of Manila</div>
           </div>
           <div>
-            <div className="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-900">
-              Dean, College of Computer Studies & TVET
+            <div className="border-b border-slate-400 pb-4 mb-1 font-bold text-slate-900">
+              Approved By: ____________________________
             </div>
-            <div className="text-[11px] text-slate-700 font-semibold">Academic & Facility Oversight Verification</div>
+            <div className="text-[11px] text-slate-700 font-semibold">Dean / Academic &amp; Facility Oversight Verification</div>
             <div className="text-[10px] text-blue-950 font-bold">ACLC College of Manila</div>
           </div>
         </div>

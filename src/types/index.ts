@@ -8,6 +8,8 @@ export interface Laboratory {
   totalAssets?: number;
   activeUnits?: number;
   activeUnitsCount?: number;
+  loanCount?: number;
+  maintenanceCount?: number;
 }
 
 export type LabFacility = string;

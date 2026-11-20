@@ -136,10 +136,10 @@ export default function App() {
     fetchData();
   };
 
-  const handleDeleteLaboratory = async (code: string, force = false) => {
+  const handleDeleteLaboratory = async (code: string) => {
     try {
-      const res = await api.deleteLaboratory(code, force);
-      if (!res.success && res.requiresConfirmation) {
+      const res = await api.deleteLaboratory(code);
+      if (!res.success && res.blocked) {
         return res;
       }
       showToast(res.message || `Laboratory "${code}" deleted.`);
@@ -147,14 +147,6 @@ export default function App() {
       fetchData();
       return { success: true, message: res.message };
     } catch (err: any) {
-      if (err?.data?.requiresConfirmation || err.message?.includes('asset item(s)')) {
-        return {
-          success: false,
-          requiresConfirmation: true,
-          assetCount: err?.data?.assetCount ?? 1,
-          message: err.message,
-        };
-      }
       showToast(err.message || 'Failed to delete laboratory', 'error');
       return { success: false, message: err.message };
     }
@@ -163,7 +155,27 @@ export default function App() {
   // System Data Reset Handlers
   const handleResetToZero = async () => {
     await api.resetData('zero');
-    showToast('Lahat ng records ay nabura na (Database back to 0).');
+    setPreselectedTagAsset(null);
+    setPreselectedBorrowAsset(null);
+    setAssetToEdit(null);
+    setInventoryCategory('ALL');
+    setInventoryStatus('ALL');
+    setInventorySearch('');
+    setAssets([]);
+    setLoans([]);
+    setMaintenance([]);
+    setMetrics((prev) => ({
+      ...prev,
+      totalAssets: 0,
+      availableAssets: 0,
+      inUseAssets: 0,
+      damagedAssets: 0,
+      activeLoans: 0,
+      overdueLoans: 0,
+      pendingMaintenance: 0,
+      totalAssetItemsCount: 0,
+    }));
+    showToast('All records have been deleted (Database reset to 0).');
     fetchData();
   };
 
@@ -457,6 +469,7 @@ export default function App() {
                     tasks={maintenance}
                     currentLab={currentLab}
                     assets={assets}
+                    laboratories={laboratories}
                     onAddTask={handleAddMaintenance}
                     onUpdateTask={handleUpdateMaintenance}
                     onDeleteTask={handleDeleteMaintenance}

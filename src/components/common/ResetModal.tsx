@@ -90,7 +90,7 @@ export const ResetModal: React.FC<ResetModalProps> = ({
         {/* Body */}
         <div className="p-5 space-y-4 text-slate-900">
           <p className="text-xs text-slate-600 leading-relaxed font-medium">
-            Piliin kung nais mong i-delete ang lahat ng records pabalik sa <strong>0</strong> (malinis na sistema para sa totoong gamit ng eskwelahan), o i-restore ang opisyal na ACLC demo catalog:
+            Choose whether to wipe all records back to <strong>0</strong> (a clean slate for actual campus deployment), or restore the official ACLC demo catalog:
           </p>
 
           <div className="space-y-3">
@@ -115,14 +115,14 @@ export const ResetModal: React.FC<ResetModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Trash2 className="w-4 h-4 text-rose-700 stroke-[2.5]" />
                     <span className="text-sm font-bold text-slate-950">
-                      Delete Lahat ng Data (Back to 0)
+                      Delete All Data (Reset to 0)
                     </span>
                     <span className="text-[10px] font-mono font-black uppercase text-rose-800 bg-rose-100 px-1.5 py-0.2 rounded border border-rose-300">
                       Clean Slate
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    Burahin ang lahat ng assets, active loans, at maintenance tickets. Magiging <strong>0 items</strong> ang database para makapag-input ka ng sariling mga totoong equipment ng ACLC.
+                    Delete all assets, active loans, and maintenance tickets. The database will be reset to <strong>0 items</strong> so you can enter your own ACLC campus equipment.
                   </p>
                 </div>
               </div>
@@ -153,7 +153,7 @@ export const ResetModal: React.FC<ResetModalProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    I-load muli ang sample 6 laboratories na may 160 core equipment units (Dell workstations, Cisco routers, iMacs, servers, at tools) para sa demonstration at testing.
+                    Reload the 6 sample laboratories with 160 core equipment units (Dell workstations, Cisco routers, iMacs, servers, and tools) for demonstration and testing.
                   </p>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export const ResetModal: React.FC<ResetModalProps> = ({
           {selectedMode === 'zero' && (
             <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-lg space-y-2 animate-in fade-in duration-150">
               <label className="block text-xs font-bold text-rose-950">
-                Kumpirmahin ang pagbura: I-type ang salitang <strong className="underline font-mono">delete</strong> sa ibaba:
+                Confirm deletion: Type the word <strong className="underline font-mono">delete</strong> below:
               </label>
               <input
                 type="text"

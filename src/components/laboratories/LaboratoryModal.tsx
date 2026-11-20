@@ -9,8 +9,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Building2,
-  Cpu,
-  Layers,
+  ShieldAlert,
+  Lock,
 } from 'lucide-react';
 
 interface LaboratoryModalProps {
@@ -19,7 +19,14 @@ interface LaboratoryModalProps {
   laboratories: Laboratory[];
   onAddLaboratory: (lab: { code: string; name: string; roomNumber: string; capacity: number; description?: string }) => Promise<void>;
   onUpdateLaboratory: (code: string, updates: Partial<Laboratory>) => Promise<void>;
-  onDeleteLaboratory: (code: string, force?: boolean) => Promise<{ success: boolean; requiresConfirmation?: boolean; assetCount?: number; message?: string }>;
+  onDeleteLaboratory: (code: string) => Promise<{
+    success: boolean;
+    blocked?: boolean;
+    assetCount?: number;
+    loanCount?: number;
+    maintenanceCount?: number;
+    message?: string;
+  }>;
   currentLab: string;
   onSelectLab: (code: string) => void;
 }
@@ -48,9 +55,15 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Deletion confirmation state
+  // Deletion confirmation & security block state
   const [confirmDeleteCode, setConfirmDeleteCode] = useState<string | null>(null);
-  const [deleteWarning, setDeleteWarning] = useState<{ code: string; assetCount: number } | null>(null);
+  const [blockedInfo, setBlockedInfo] = useState<{
+    code: string;
+    assetCount: number;
+    loanCount: number;
+    maintenanceCount: number;
+    message?: string;
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -115,14 +128,21 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
     }
   };
 
-  const handleDelete = async (labCode: string, force = false) => {
+  const handleDelete = async (labCode: string) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await onDeleteLaboratory(labCode, force);
+      setBlockedInfo(null);
+      const res = await onDeleteLaboratory(labCode);
 
-      if (!res.success && res.requiresConfirmation) {
-        setDeleteWarning({ code: labCode, assetCount: res.assetCount || 0 });
+      if (!res.success && res.blocked) {
+        setBlockedInfo({
+          code: labCode,
+          assetCount: res.assetCount || 0,
+          loanCount: res.loanCount || 0,
+          maintenanceCount: res.maintenanceCount || 0,
+          message: res.message,
+        });
         setConfirmDeleteCode(null);
         return;
       }
@@ -132,7 +152,7 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
         return;
       }
 
-      setDeleteWarning(null);
+      setBlockedInfo(null);
       setConfirmDeleteCode(null);
       setSuccessMessage(res.message || `Laboratory ${labCode} removed.`);
       if (currentLab === labCode) {
@@ -187,35 +207,36 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
           </div>
         )}
 
-        {/* Delete Confirmation Warning */}
-        {deleteWarning && (
-          <div className="mx-5 mt-3 p-4 rounded-xl bg-amber-50 border-2 border-amber-400 space-y-2 shrink-0">
-            <div className="flex items-center gap-2 text-amber-950 font-bold text-xs sm:text-sm">
-              <AlertTriangle className="w-4 h-4 text-amber-700 stroke-[2.5]" />
-              <span>Warning: Laboratory Contains {deleteWarning.assetCount} Asset(s)</span>
+        {/* Security Protection Block Alert */}
+        {blockedInfo && (
+          <div className="mx-5 mt-3 p-4 rounded-xl bg-rose-50 border-2 border-rose-300 space-y-2 shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-rose-950 font-bold text-xs sm:text-sm">
+                <ShieldAlert className="w-4 h-4 text-rose-700 stroke-[2.5] shrink-0" />
+                <span>Deletion Blocked: {blockedInfo.code} Contains Active Data</span>
+              </div>
+              <button
+                onClick={() => setBlockedInfo(null)}
+                className="text-xs font-bold text-rose-700 hover:text-rose-950 cursor-pointer"
+              >
+                Dismiss
+              </button>
             </div>
-            <p className="text-xs text-amber-900 leading-relaxed font-medium">
-              Deleting <strong>{deleteWarning.code}</strong> will also permanently remove all its assigned workstations, network gear, and active loan logs.
+            <p className="text-xs text-rose-900 leading-relaxed font-medium">
+              For security and record protection, <strong>{blockedInfo.code}</strong> cannot be deleted while it still contains active records:{' '}
+              <strong>
+                {[
+                  blockedInfo.assetCount > 0 ? `${blockedInfo.assetCount} asset(s)` : null,
+                  blockedInfo.loanCount > 0 ? `${blockedInfo.loanCount} loan record(s)` : null,
+                  blockedInfo.maintenanceCount > 0 ? `${blockedInfo.maintenanceCount} maintenance ticket(s)` : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+              </strong>.
             </p>
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                onClick={() => handleDelete(deleteWarning.code, true)}
-                disabled={loading}
-                className="px-3.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg cursor-pointer shadow-xs"
-              >
-                {loading ? 'Deleting...' : 'Force Delete Lab & All Items'}
-              </button>
-              <button
-                onClick={() => {
-                  setDeleteWarning(null);
-                  setConfirmDeleteCode(null);
-                }}
-                disabled={loading}
-                className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
+            <p className="text-[11px] text-rose-800">
+              Please transfer the equipment to another laboratory or remove all associated records before deleting this facility.
+            </p>
           </div>
         )}
 
@@ -361,6 +382,10 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
             {laboratories.map((lab) => {
               const isSelected = currentLab === lab.code;
               const isConfirmingDelete = confirmDeleteCode === lab.code;
+              const assetCount = lab.totalAssets || 0;
+              const loanCount = lab.loanCount || 0;
+              const maintenanceCount = lab.maintenanceCount || 0;
+              const hasRecords = assetCount > 0 || loanCount > 0 || maintenanceCount > 0;
 
               return (
                 <div
@@ -372,7 +397,7 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                   }`}
                 >
                   <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-300">
                         {lab.code}
                       </span>
@@ -382,15 +407,29 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                           Active Scope
                         </span>
                       )}
+                      {hasRecords ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300"
+                          title="Protected: Clear assets, loans, and repair tickets before deleting this lab"
+                        >
+                          <Lock className="w-2.5 h-2.5" /> Protected (Has Data)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                          Empty (Deletable)
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 font-medium">
                       <span>{lab.roomNumber}</span>
                       <span className="text-slate-300">·</span>
                       <span>Target Capacity: <strong className="text-slate-900">{lab.capacity} units</strong></span>
                       <span className="text-slate-300">·</span>
                       <span className="font-mono font-bold text-blue-900">
-                        {lab.totalAssets !== undefined ? `${lab.totalAssets} Asset SKUs (${lab.activeUnitsCount || 0} units)` : ''}
+                        {assetCount} Asset SKUs ({lab.activeUnitsCount || 0} units)
+                        {loanCount > 0 ? ` · ${loanCount} loans` : ''}
+                        {maintenanceCount > 0 ? ` · ${maintenanceCount} tickets` : ''}
                       </span>
                     </div>
 
@@ -420,10 +459,25 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
 
-                    {isConfirmingDelete ? (
+                    {hasRecords ? (
+                      <button
+                        onClick={() =>
+                          setBlockedInfo({
+                            code: lab.code,
+                            assetCount,
+                            loanCount,
+                            maintenanceCount,
+                          })
+                        }
+                        title={`Protected: Remove all ${assetCount} assets, ${loanCount} loans, and ${maintenanceCount} tickets first before deleting ${lab.code}`}
+                        className="p-1.5 text-slate-400 bg-slate-100 border border-slate-200 rounded-lg cursor-not-allowed hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                      </button>
+                    ) : isConfirmingDelete ? (
                       <div className="flex items-center gap-1 bg-rose-50 p-1 rounded-lg border border-rose-300">
                         <button
-                          onClick={() => handleDelete(lab.code, false)}
+                          onClick={() => handleDelete(lab.code)}
                           disabled={loading}
                           className="px-2 py-1 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded cursor-pointer"
                         >
@@ -440,11 +494,11 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                     ) : (
                       <button
                         onClick={() => {
-                          setDeleteWarning(null);
+                          setBlockedInfo(null);
                           setError(null);
                           setConfirmDeleteCode(lab.code);
                         }}
-                        title={`Delete ${lab.code}`}
+                        title={`Delete empty laboratory ${lab.code}`}
                         className="p-1.5 text-rose-700 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
