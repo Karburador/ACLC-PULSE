@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
           />
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-lg sm:text-2xl font-black tracking-tight text-blue-950 whitespace-nowrap">
+              <span className="font-kabel text-lg sm:text-2xl font-bold tracking-normal text-blue-950 whitespace-nowrap">
                 ACLC-Pulse
               </span>
               <span className="text-[10px] sm:text-[11px] font-extrabold text-amber-900 tracking-wider bg-amber-100 px-1.5 sm:px-2 py-0.5 rounded border border-amber-400">

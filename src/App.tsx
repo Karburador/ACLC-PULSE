@@ -378,7 +378,7 @@ export default function App() {
             />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-blue-950 tracking-tight">ACLC-Pulse</h1>
+                <h1 className="font-kabel text-2xl font-bold text-blue-950 tracking-normal">ACLC-Pulse</h1>
                 <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-400">
                   MANILA
                 </span>
