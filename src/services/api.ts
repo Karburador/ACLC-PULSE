@@ -1,13 +1,28 @@
 import { Asset, LoanRecord, MaintenanceTask, LabStorageLayout, Laboratory } from '../types';
 
-const rawBase = import.meta.env.VITE_API_BASE_URL;
-const BASE_URL =
-  rawBase && typeof rawBase === 'string' && rawBase.trim() !== '' && rawBase !== 'undefined'
-    ? `${rawBase.trim().replace(/\/$/, '')}/api`
-    : '/api';
+function resolveBaseUrl(): string {
+  const rawBase = import.meta.env.VITE_API_BASE_URL;
+  if (!rawBase || typeof rawBase !== 'string') return '/api';
+
+  const cleaned = rawBase.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
+  if (!cleaned || cleaned === 'undefined' || cleaned === 'null') return '/api';
+
+  if (/\/api$/i.test(cleaned) || cleaned === '/api') {
+    return cleaned;
+  }
+
+  return `${cleaned}/api`;
+}
+
+const BASE_URL = resolveBaseUrl();
 
 async function request<T>(endpoint: string, options?: RequestInit, retries = 2): Promise<T> {
-  const url = `${BASE_URL}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/api/')
+    ? endpoint.slice(4)
+    : endpoint.startsWith('/')
+    ? endpoint
+    : `/${endpoint}`;
+  const url = `${BASE_URL}${normalizedEndpoint}`;
   try {
     const res = await fetch(url, {
       headers: {

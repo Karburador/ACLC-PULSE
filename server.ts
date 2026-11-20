@@ -37,7 +37,13 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// REST API routes
+// REST API routes (safely normalize accidental double /api/api prefix)
+app.use((req, _res, next) => {
+  if (req.url === '/api/api' || req.url.startsWith('/api/api/')) {
+    req.url = req.url.replace(/^\/api\/api/, '/api');
+  }
+  next();
+});
 app.use('/api', apiRouter);
 
 // Strict 404 handler for any unmatched /api routes (prevents falling through to Vite HTML middleware)
