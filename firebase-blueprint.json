@@ -109,6 +109,10 @@
         "storageLocation": {
           "type": "object"
         },
+        "monitorInfo": {
+          "type": "object",
+          "description": "Optional paired monitor details when asset category is Computers"
+        },
         "acquisitionDate": {
           "type": "string",
           "maxLength": 40

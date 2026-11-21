@@ -54,6 +54,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       'Shelf',
       'Serial Number',
       'Brand/Model',
+      'Paired Monitor',
     ];
     const rows = assets.map((a) => [
       a.assetTag,
@@ -68,6 +69,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       a.storageLocation?.shelf || '',
       a.serialNumber || '',
       a.brandModel || '',
+      a.monitorInfo
+        ? [a.monitorInfo.brandModel, a.monitorInfo.specs, a.monitorInfo.serialNumber]
+            .filter(Boolean)
+            .join(' | ')
+        : '',
     ]);
     downloadCsv(`ACLC-Pulse-Inventory-${Date.now()}.csv`, headers, rows);
   };

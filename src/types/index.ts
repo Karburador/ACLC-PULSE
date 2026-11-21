@@ -45,6 +45,11 @@ export interface Asset {
     shelf: string;
     slot?: string;
   };
+  monitorInfo?: {
+    brandModel?: string;
+    serialNumber?: string;
+    specs?: string;
+  };
   acquisitionDate?: string;
   lastMaintained?: string;
   notes?: string;

@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   where,
   writeBatch,
   Unsubscribe,
@@ -174,6 +175,19 @@ function buildAssetPayload(
   if (acquisitionDate) payload.acquisitionDate = acquisitionDate;
   if (lastMaintained) payload.lastMaintained = lastMaintained;
   if (notes) payload.notes = notes;
+
+  if ((data.category || 'Computers') === 'Computers' && data.monitorInfo) {
+    const monBrand = clampStr(data.monitorInfo.brandModel, 120);
+    const monSerial = clampStr(data.monitorInfo.serialNumber, 100);
+    const monSpecs = clampStr(data.monitorInfo.specs, 200);
+    if (monBrand || monSerial || monSpecs) {
+      const monitorInfo: Record<string, string> = {};
+      if (monBrand) monitorInfo.brandModel = monBrand;
+      if (monSerial) monitorInfo.serialNumber = monSerial;
+      if (monSpecs) monitorInfo.specs = monSpecs;
+      payload.monitorInfo = monitorInfo;
+    }
+  }
 
   return payload;
 }
@@ -659,8 +673,12 @@ export const firestoreSync = {
         ...current,
         ...updates,
         storageLocation: updates.storageLocation || current.storageLocation,
+        monitorInfo: updates.monitorInfo !== undefined ? updates.monitorInfo : current.monitorInfo,
       };
       const payload = buildAssetPayload(merged, docId, current.ownerId, false);
+      if (current.monitorInfo && !payload.monitorInfo) {
+        payload.monitorInfo = deleteField();
+      }
       delete payload.id;
       delete payload.ownerId;
       await updateDoc(ref, payload);

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Asset, AssetCategory, AssetStatus, Laboratory } from '../../types';
 import { DEFAULT_STORAGE_LAYOUTS } from '../../data/storageLayouts';
-import { X, Save, AlertCircle, MapPin, Sparkles } from 'lucide-react';
+import { X, Save, AlertCircle, Sparkles, Monitor } from 'lucide-react';
 
 interface AssetModalProps {
   isOpen: boolean;
@@ -93,6 +93,11 @@ export const AssetModal: React.FC<AssetModalProps> = ({
           shelf: '',
           slot: '',
         },
+        monitorInfo: assetToEdit.monitorInfo || {
+          brandModel: '',
+          serialNumber: '',
+          specs: '',
+        },
       });
     } else {
       setIsTagManual(false);
@@ -119,33 +124,17 @@ export const AssetModal: React.FC<AssetModalProps> = ({
           shelf: targetLab.toUpperCase() === 'COMLAB' ? 'Under Table (CPU Bay)' : 'Under Table / Direct',
           slot: targetLab.toUpperCase() === 'COMLAB' ? 'Set 1 of 7' : 'Bay 1',
         },
+        monitorInfo: {
+          brandModel: '',
+          serialNumber: '',
+          specs: '',
+        },
         notes: '',
       });
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetToEdit, defaultLab, isOpen]);
-
-  const activeLabLayout = useMemo(() => {
-    const code = (formData.lab || defaultLab || 'COMLAB').toUpperCase();
-    return DEFAULT_STORAGE_LAYOUTS.find((l) => l.lab.toUpperCase() === code);
-  }, [formData.lab, defaultLab]);
-
-  const cabinetSuggestions = useMemo(() => {
-    if (!activeLabLayout) return [`Cabinet ${(formData.lab || 'LAB').toUpperCase()}-A`];
-    return activeLabLayout.cabinets.map((c) => c.name);
-  }, [activeLabLayout, formData.lab]);
-
-  const shelfSuggestions = useMemo(() => {
-    const commonPositions = [
-      'Under Table (CPU Bay)',
-      'Tabletop (Monitor & Peripherals)',
-      'No Shelf / Floor Level',
-    ];
-    if (!activeLabLayout) return commonPositions;
-    const layoutLevels = activeLabLayout.cabinets.flatMap((c) => c.shelves.map((s) => s.label));
-    return Array.from(new Set([...commonPositions, ...layoutLevels]));
-  }, [activeLabLayout]);
 
   if (!isOpen) return null;
 
@@ -163,6 +152,12 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     try {
       setIsSubmitting(true);
       setError(null);
+      const monBrand = formData.monitorInfo?.brandModel?.trim() || '';
+      const monSerial = formData.monitorInfo?.serialNumber?.trim() || '';
+      const monSpecs = formData.monitorInfo?.specs?.trim() || '';
+      const hasMonitor =
+        formData.category === 'Computers' && Boolean(monBrand || monSerial || monSpecs);
+
       const normalizedData: Partial<Asset> = {
         ...formData,
         storageLocation: {
@@ -170,6 +165,13 @@ export const AssetModal: React.FC<AssetModalProps> = ({
           shelf: formData.storageLocation?.shelf?.trim() || 'Under Table (No Shelf)',
           slot: formData.storageLocation?.slot?.trim() || '',
         },
+        monitorInfo: hasMonitor
+          ? {
+              brandModel: monBrand,
+              serialNumber: monSerial,
+              specs: monSpecs,
+            }
+          : undefined,
       };
       await onSave(normalizedData);
       onClose();
@@ -455,90 +457,85 @@ export const AssetModal: React.FC<AssetModalProps> = ({
             </div>
           </div>
 
-          {/* Row 4: Compact Placement / Storage Mapping */}
-          <div className="px-3 py-2 bg-blue-50/60 border border-blue-200 rounded-lg space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-blue-900 uppercase tracking-wide">
-                <MapPin className="w-3.5 h-3.5 text-blue-700" />
-                Table / Placement Location
-              </span>
-              <span className="text-[10px] font-medium text-slate-600">
-                Works for long lab tables (no shelf) or cabinets
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Table / Row / Cabinet *</label>
-                <input
-                  type="text"
-                  required
-                  list="asset-cabinet-suggestions"
-                  value={formData.storageLocation?.rackOrCabinet || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      storageLocation: {
-                        ...formData.storageLocation!,
-                        rackOrCabinet: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Long Table 1 (7 Computer Sets)"
-                  className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
-                />
-                <datalist id="asset-cabinet-suggestions">
-                  {cabinetSuggestions.map((cab) => (
-                    <option key={cab} value={cab} />
-                  ))}
-                </datalist>
+          {/* Conditional Paired Monitor Section (Only when Category === 'Computers') */}
+          {formData.category === 'Computers' && (
+            <div className="px-3 py-2 bg-emerald-50/60 border border-emerald-200 rounded-lg space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-900 uppercase tracking-wide">
+                  <Monitor className="w-3.5 h-3.5 text-emerald-700" />
+                  Paired Monitor (PC Set)
+                </span>
+                <span className="text-[10px] font-medium text-slate-600">
+                  Optional display attached to this PC workstation
+                </span>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Position (Optional)</label>
-                <input
-                  type="text"
-                  list="asset-shelf-suggestions"
-                  value={formData.storageLocation?.shelf || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      storageLocation: {
-                        ...formData.storageLocation!,
-                        shelf: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Under Table / Tabletop / No Shelf"
-                  className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
-                />
-                <datalist id="asset-shelf-suggestions">
-                  {shelfSuggestions.map((shelf) => (
-                    <option key={shelf} value={shelf} />
-                  ))}
-                </datalist>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Monitor Brand / Model
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.monitorInfo?.brandModel || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        monitorInfo: {
+                          ...formData.monitorInfo,
+                          brandModel: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="e.g. Dell 24&quot; IPS / Acer KA222Q"
+                    className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-emerald-600 font-medium"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">PC Seat / Bay (Optional)</label>
-                <input
-                  type="text"
-                  value={formData.storageLocation?.slot || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      storageLocation: {
-                        ...formData.storageLocation!,
-                        slot: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Set 1 of 7 / PC-03"
-                  className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
-                />
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Monitor Serial / Tag
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.monitorInfo?.serialNumber || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        monitorInfo: {
+                          ...formData.monitorInfo,
+                          serialNumber: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="e.g. MON-SN-001"
+                    className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-600 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Size / Specs
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.monitorInfo?.specs || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        monitorInfo: {
+                          ...formData.monitorInfo,
+                          specs: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="e.g. 24&quot; 1080p HDMI/VGA"
+                    className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-emerald-600 font-medium"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Row 5: Technical Specs & Notes side-by-side */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

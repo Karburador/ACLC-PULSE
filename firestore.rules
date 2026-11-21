@@ -68,9 +68,17 @@ service cloud.firestore {
         && (!('slot' in loc) || (loc.slot is string && loc.slot.size() <= 120));
     }
 
+    function isValidMonitorInfo(mon) {
+      return mon is map
+        && mon.keys().hasOnly(['brandModel', 'serialNumber', 'specs'])
+        && (!('brandModel' in mon) || (mon.brandModel is string && mon.brandModel.size() <= 120))
+        && (!('serialNumber' in mon) || (mon.serialNumber is string && mon.serialNumber.size() <= 100))
+        && (!('specs' in mon) || (mon.specs is string && mon.specs.size() <= 200));
+    }
+
     function isValidAsset(data) {
       return data.keys().hasAll(['id', 'assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'storageLocation', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'acquisitionDate', 'lastMaintained', 'notes', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'monitorInfo', 'acquisitionDate', 'lastMaintained', 'notes', 'ownerId', 'createdAt', 'updatedAt'])
         && isValidId(data.id)
         && data.assetTag is string && data.assetTag.size() >= 1 && data.assetTag.size() <= 64
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 160
@@ -84,6 +92,7 @@ service cloud.firestore {
         && (!('brandModel' in data) || (data.brandModel is string && data.brandModel.size() <= 120))
         && (!('specs' in data) || (data.specs is string && data.specs.size() <= 600))
         && isValidStorageLocation(data.storageLocation)
+        && (!('monitorInfo' in data) || isValidMonitorInfo(data.monitorInfo))
         && (!('acquisitionDate' in data) || (data.acquisitionDate is string && data.acquisitionDate.size() <= 40))
         && (!('lastMaintained' in data) || (data.lastMaintained is string && data.lastMaintained.size() <= 40))
         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 600))
@@ -204,7 +213,7 @@ service cloud.firestore {
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
         && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'acquisitionDate', 'lastMaintained', 'notes', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'monitorInfo', 'acquisitionDate', 'lastMaintained', 'notes', 'updatedAt'])
           ||
           incoming().diff(existing()).affectedKeys().hasOnly(['availableQuantity', 'status', 'updatedAt'])
         );
