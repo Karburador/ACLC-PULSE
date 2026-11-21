@@ -103,7 +103,7 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
       if (editingCode) {
         await onUpdateLaboratory(editingCode, {
           name: name.trim(),
-          roomNumber: roomNumber.trim(),
+          roomNumber: roomNumber.trim() || 'Campus Lab',
           capacity: Number(capacity) || 30,
           description: description.trim(),
         });
@@ -112,7 +112,7 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
         await onAddLaboratory({
           code: code.trim().toUpperCase(),
           name: name.trim(),
-          roomNumber: roomNumber.trim(),
+          roomNumber: 'Campus Lab',
           capacity: Number(capacity) || 30,
           description: description.trim(),
         });
@@ -315,34 +315,18 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Room / Campus Location *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={roomNumber}
-                    onChange={(e) => setRoomNumber(e.target.value)}
-                    placeholder="e.g. Room 210, Building B 3rd Flr"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Target Station Capacity (Units) *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={capacity}
-                    onChange={(e) => setCapacity(parseInt(e.target.value) || 1)}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Target Station Capacity (Units) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={capacity}
+                  onChange={(e) => setCapacity(parseInt(e.target.value) || 1)}
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
               </div>
 
               <div>
@@ -422,8 +406,6 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 font-medium">
-                      <span>{lab.roomNumber}</span>
-                      <span className="text-slate-300">·</span>
                       <span>Target Capacity: <strong className="text-slate-900">{lab.capacity} units</strong></span>
                       <span className="text-slate-300">·</span>
                       <span className="font-mono font-bold text-blue-900">

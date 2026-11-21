@@ -238,7 +238,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         </div>
                         <div>
                           <h3 className="text-sm font-bold text-slate-900">{lab.code}</h3>
-                          <span className="text-xs text-slate-500 font-medium">{lab.roomNumber}</span>
                         </div>
                       </div>
                       <span className="text-xs font-mono font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">

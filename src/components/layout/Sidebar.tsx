@@ -165,8 +165,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             laboratories.map((lab) => (
               <div key={lab.code} className="flex justify-between items-center">
-                <span className="font-medium truncate max-w-[130px]" title={`${lab.name} (${lab.roomNumber})`}>
-                  {lab.code} ({lab.roomNumber})
+                <span className="font-medium truncate max-w-[130px]" title={lab.name}>
+                  {lab.code}
                 </span>
                 <span className="font-mono font-bold text-slate-900 shrink-0">
                   {lab.activeUnitsCount !== undefined ? `${lab.activeUnitsCount}u` : `${lab.capacity}u`}
@@ -287,7 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ) : (
               laboratories.map((lab) => (
                 <div key={lab.code} className="flex justify-between items-center">
-                  <span className="font-medium truncate max-w-[120px]" title={`${lab.name} (${lab.roomNumber})`}>
+                  <span className="font-medium truncate max-w-[120px]" title={lab.name}>
                     {lab.code}
                   </span>
                   <span className="font-mono font-bold text-slate-900 shrink-0 text-[10px]">

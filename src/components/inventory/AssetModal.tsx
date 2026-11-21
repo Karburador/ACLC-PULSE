@@ -334,14 +334,14 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                 {laboratories.length > 0 ? (
                   laboratories.map((lab) => (
                     <option key={lab.code} value={lab.code}>
-                      {lab.code} ({lab.roomNumber})
+                      {lab.code}
                     </option>
                   ))
                 ) : (
                   <>
-                    <option value="COMLAB">COMLAB (Room 304)</option>
-                    <option value="NETLAB">NETLAB (Room 306)</option>
-                    <option value="TESDA">TESDA (Room 208)</option>
+                    <option value="COMLAB">COMLAB</option>
+                    <option value="NETLAB">NETLAB</option>
+                    <option value="TESDA">TESDA</option>
                   </>
                 )}
               </select>

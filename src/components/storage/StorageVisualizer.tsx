@@ -25,7 +25,7 @@ export const StorageVisualizer: React.FC<StorageVisualizerProps> = ({
       .filter((lab) => !knownCodes.has(lab.code.toUpperCase()))
       .map((lab) => ({
         lab: lab.code,
-        name: `${lab.name} (${lab.roomNumber})`,
+        name: lab.name,
         roomNumber: lab.roomNumber,
         totalCapacityUnits: lab.capacity,
         activeUnitsCount: lab.activeUnitsCount || 0,

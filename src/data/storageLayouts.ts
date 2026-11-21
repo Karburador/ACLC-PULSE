@@ -3,7 +3,7 @@ import { LabStorageLayout } from '../types';
 export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
   {
     lab: 'COMLAB',
-    name: 'Computer Laboratory (Room 304)',
+    name: 'Computer Laboratory',
     roomNumber: 'Room 304',
     totalCapacityUnits: 40,
     activeUnitsCount: 0,
@@ -78,7 +78,7 @@ export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
   },
   {
     lab: 'NETLAB',
-    name: 'Networking Laboratory (Room 306)',
+    name: 'Networking Laboratory',
     roomNumber: 'Room 306',
     totalCapacityUnits: 25,
     activeUnitsCount: 0,
@@ -108,7 +108,7 @@ export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
   },
   {
     lab: 'TESDA',
-    name: 'TESDA Hardware Servicing Laboratory (Room 208)',
+    name: 'TESDA Hardware Servicing Laboratory',
     roomNumber: 'Room 208',
     totalCapacityUnits: 20,
     activeUnitsCount: 0,
@@ -138,7 +138,7 @@ export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
   },
   {
     lab: 'MACLAB',
-    name: 'Multimedia & Animation Laboratory (Room 302)',
+    name: 'Multimedia & Animation Laboratory',
     roomNumber: 'Room 302',
     totalCapacityUnits: 30,
     activeUnitsCount: 0,
@@ -165,7 +165,7 @@ export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
   },
   {
     lab: 'CYBERLAB',
-    name: 'Cybersecurity, Cloud & Server Operations Lab (Room 308)',
+    name: 'Cybersecurity, Cloud & Server Operations Lab',
     roomNumber: 'Room 308',
     totalCapacityUnits: 20,
     activeUnitsCount: 0,
@@ -184,7 +184,7 @@ export const DEFAULT_STORAGE_LAYOUTS: LabStorageLayout[] = [
   },
   {
     lab: 'IOTLAB',
-    name: 'IoT, Robotics & Embedded Systems Lab (Room 204)',
+    name: 'IoT, Robotics & Embedded Systems Lab',
     roomNumber: 'Room 204',
     totalCapacityUnits: 25,
     activeUnitsCount: 0,
