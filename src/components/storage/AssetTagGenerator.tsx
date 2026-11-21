@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import QRCode from 'qrcode';
 import { Asset, LabType } from '../../types';
-import { Printer, Tag, Check, Copy } from 'lucide-react';
+import { Printer, Check, Copy, Download, QrCode } from 'lucide-react';
 
 interface AssetTagGeneratorProps {
   assets: Asset[];
@@ -10,16 +11,62 @@ interface AssetTagGeneratorProps {
 
 export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
   assets,
-  currentLab,
+  currentLab: _currentLab,
   selectedAsset: initialAsset,
 }) => {
   const [activeAssetId, setActiveAssetId] = useState<string>(
     initialAsset ? initialAsset.id : assets[0]?.id || ''
   );
   const [tagFormat, setTagFormat] = useState<'Standard' | 'Compact' | 'Industrial'>('Standard');
+  const [qrMode, setQrMode] = useState<'url' | 'tag'>('url');
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (initialAsset?.id) {
+      setActiveAssetId(initialAsset.id);
+    }
+  }, [initialAsset?.id]);
+
   const activeAsset = assets.find((a) => a.id === activeAssetId) || initialAsset || assets[0];
+
+  const qrPayload = useMemo(() => {
+    if (!activeAsset) return '';
+    if (qrMode === 'tag') {
+      return activeAsset.assetTag;
+    }
+    const origin =
+      typeof window !== 'undefined' ? window.location.origin : 'https://aclc-pulse.app';
+    return `${origin}/?asset=${encodeURIComponent(activeAsset.assetTag)}`;
+  }, [activeAsset, qrMode]);
+
+  useEffect(() => {
+    let active = true;
+    if (!qrPayload) {
+      setQrDataUrl('');
+      return;
+    }
+
+    QRCode.toDataURL(qrPayload, {
+      width: 360,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#0A2540',
+        light: '#FFFFFF',
+      },
+    })
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (active) setQrDataUrl('');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [qrPayload]);
 
   const handlePrint = () => {
     window.print();
@@ -31,6 +78,16 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleDownloadQrPng = () => {
+    if (!qrDataUrl || !activeAsset) return;
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = `${activeAsset.assetTag}-QR.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Generate deterministic SVG Barcode lines based on tag characters
@@ -46,7 +103,7 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
     const fullBars = [true, false, true, ...bars, true, false, true];
 
     return (
-      <svg className="w-full h-12" viewBox={`0 0 ${fullBars.length * 3} 40`} preserveAspectRatio="none">
+      <svg className="w-full h-11" viewBox={`0 0 ${fullBars.length * 3} 40`} preserveAspectRatio="none">
         {fullBars.map((isBlack, idx) =>
           isBlack ? (
             <rect
@@ -58,54 +115,6 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
               fill="#0F172A"
             />
           ) : null
-        )}
-      </svg>
-    );
-  };
-
-  // Generate crisp deterministic 2D QR matrix
-  const renderSvgQr = (code: string) => {
-    const size = 17;
-    const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
-
-    const drawFinder = (startX: number, startY: number) => {
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-          if (r === 0 || r === 4 || c === 0 || c === 4 || (r >= 1 && r <= 3 && c >= 1 && c <= 3 && (r === 2 && c === 2))) {
-            matrix[startY + r][startX + c] = true;
-          }
-        }
-      }
-    };
-    drawFinder(1, 1);
-    drawFinder(11, 1);
-    drawFinder(1, 11);
-
-    let hash = 0;
-    for (let i = 0; i < code.length; i++) {
-      hash = (hash << 5) - hash + code.charCodeAt(i);
-      hash |= 0;
-    }
-
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        const inFinder =
-          (r < 7 && c < 7) || (r < 7 && c > 9) || (r > 9 && c < 7);
-        if (!inFinder) {
-          const bit = Math.abs((hash ^ (r * 31 + c * 17)) % 7) > 3;
-          matrix[r][c] = bit;
-        }
-      }
-    }
-
-    return (
-      <svg className="w-20 h-20 bg-white p-1 rounded border border-slate-300" viewBox={`0 0 ${size} ${size}`}>
-        {matrix.map((row, r) =>
-          row.map((filled, c) =>
-            filled ? (
-              <rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} fill="#0A2540" />
-            ) : null
-          )
         )}
       </svg>
     );
@@ -139,24 +148,52 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-black uppercase tracking-wider text-blue-900">
-              Phase 3: Labeling & Physical Verification
+              Labeling &amp; Physical Verification
             </span>
             <span className="text-slate-400">·</span>
-            <span className="text-xs text-slate-600 font-semibold">Thermal & Laser Printable Asset Tags</span>
+            <span className="text-xs text-slate-600 font-semibold">Scannable ISO QR &amp; Printable Stickers</span>
           </div>
           <h2 className="text-xl font-black text-slate-950 tracking-tight">
-            Printable Asset Tag Generator
+            Printable Asset Tag &amp; QR Generator
           </h2>
           <p className="text-xs text-slate-600 mt-0.5 font-normal">
-            Generates standardized tamper-evident equipment labels with ACLC College of Manila branding, optical barcodes, and QR routing.
+            Generates real camera-scannable QR stickers for ACLC College of Manila laboratory assets.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* QR Content Mode */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-300" title="Choose what the QR code encodes">
+            <button
+              type="button"
+              onClick={() => setQrMode('url')}
+              className={`px-2.5 py-1.5 text-xs rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                qrMode === 'url'
+                  ? 'bg-emerald-700 text-white font-bold shadow-xs'
+                  : 'text-slate-700 hover:text-slate-950 hover:bg-slate-200 font-semibold'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              Phone Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrMode('tag')}
+              className={`px-2.5 py-1.5 text-xs rounded transition-colors cursor-pointer ${
+                qrMode === 'tag'
+                  ? 'bg-emerald-700 text-white font-bold shadow-xs'
+                  : 'text-slate-700 hover:text-slate-950 hover:bg-slate-200 font-semibold'
+              }`}
+            >
+              Tag ID Only
+            </button>
+          </div>
+
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-300">
             {(['Standard', 'Compact', 'Industrial'] as const).map((fmt) => (
               <button
                 key={fmt}
+                type="button"
                 onClick={() => setTagFormat(fmt)}
                 className={`px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
                   tagFormat === fmt
@@ -170,6 +207,7 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={handlePrint}
             disabled={!activeAsset}
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm cursor-pointer whitespace-nowrap"
@@ -199,6 +237,7 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
                 return (
                   <button
                     key={asset.id}
+                    type="button"
                     onClick={() => setActiveAssetId(asset.id)}
                     className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
                       isSelected
@@ -216,7 +255,8 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
                     </div>
                     <div className="text-xs font-bold text-slate-900 truncate mt-1">{asset.name}</div>
                     <div className="text-[11px] text-slate-500 truncate font-medium">
-                      {asset.storageLocation?.rackOrCabinet} · {asset.storageLocation?.shelf}
+                      {asset.brandModel || asset.category}
+                      {asset.monitorInfo?.brandModel ? ` · Monitor: ${asset.monitorInfo.brandModel}` : ''}
                     </div>
                   </button>
                 );
@@ -285,32 +325,45 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
                         S/N: {activeAsset.serialNumber}
                       </div>
                     )}
+                    {activeAsset.monitorInfo?.brandModel && (
+                      <div className="text-[10px] text-emerald-800 truncate font-semibold">
+                        Monitor: {activeAsset.monitorInfo.brandModel}
+                        {activeAsset.monitorInfo.serialNumber ? ` (${activeAsset.monitorInfo.serialNumber})` : ''}
+                      </div>
+                    )}
                   </div>
 
-                  {/* QR Matrix */}
+                  {/* Real Scannable ISO QR Code */}
                   <div className="shrink-0 flex flex-col items-center">
-                    {renderSvgQr(activeAsset.assetTag)}
-                    <span className="text-[8px] font-mono font-bold text-slate-600 mt-1">
-                      SCAN FOR LOGS
+                    {qrDataUrl ? (
+                      <img
+                        src={qrDataUrl}
+                        alt={`Scannable QR Code for ${activeAsset.assetTag}`}
+                        className="w-24 h-24 bg-white p-1 rounded border border-slate-400"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 bg-slate-100 rounded border border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
+                        Generating...
+                      </div>
+                    )}
+                    <span className="text-[8px] font-mono font-bold text-slate-700 mt-1">
+                      {qrMode === 'url' ? 'SCAN WITH CAMERA' : 'SCAN TAG ID'}
                     </span>
                   </div>
                 </div>
 
-                {/* Storage Mapping & Barcode */}
+                {/* Metadata & Barcode */}
                 <div className="pt-3 border-t border-slate-300 space-y-2">
                   <div className="flex items-center justify-between text-[10px] text-slate-700 font-medium">
                     <span>
-                      Loc:{' '}
-                      <strong className="text-slate-950">
-                        {activeAsset.storageLocation?.rackOrCabinet} / {activeAsset.storageLocation?.shelf}
-                      </strong>
+                      Category: <strong className="text-slate-950">{activeAsset.category}</strong>
                     </span>
                     <span>
-                      Category: <strong className="text-slate-950">{activeAsset.category}</strong>
+                      Qty: <strong className="text-slate-950">{activeAsset.quantity} {activeAsset.unit || 'units'}</strong>
                     </span>
                   </div>
 
-                  {/* SVG Barcode Graphic */}
+                  {/* Optical Tag Strip */}
                   <div className="bg-slate-50 p-2 rounded border border-slate-300">
                     {renderSvgBarcode(activeAsset.assetTag)}
                     <div className="text-center font-mono text-[9px] font-black text-slate-900 tracking-widest mt-1">
@@ -330,8 +383,9 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
 
             {/* Quick Actions for Active Tag */}
             {activeAsset && (
-              <div className="flex items-center gap-3 mt-6">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 mt-6">
                 <button
+                  type="button"
                   onClick={handleCopyTagCode}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 bg-white border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-xs"
                 >
@@ -339,6 +393,16 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
                   <span>{copied ? 'Tag Copied!' : 'Copy Tag ID'}</span>
                 </button>
                 <button
+                  type="button"
+                  onClick={handleDownloadQrPng}
+                  disabled={!qrDataUrl}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-900 hover:text-blue-950 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download QR PNG</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handlePrint}
                   className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors cursor-pointer shadow-sm"
                 >
@@ -346,6 +410,12 @@ export const AssetTagGenerator: React.FC<AssetTagGeneratorProps> = ({
                   <span>Send to Label Printer</span>
                 </button>
               </div>
+            )}
+
+            {activeAsset && (
+              <p className="text-[11px] text-slate-500 font-medium mt-3 text-center max-w-md">
+                QR encodes: <span className="font-mono text-slate-700 break-all">{qrPayload}</span>
+              </p>
             )}
           </div>
         </div>

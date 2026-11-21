@@ -134,6 +134,25 @@ export default function App() {
     };
   }, [authReady, user]);
 
+  // Handle QR Code deep link (?asset=ACLC-COM-PC01) once cloud sync is ready
+  useEffect(() => {
+    if (!cloudReady || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const scannedTag = params.get('asset')?.trim();
+    if (scannedTag) {
+      setActiveTab('inventory');
+      setCurrentLab('ALL');
+      setInventoryCategory('ALL');
+      setInventoryStatus('ALL');
+      setInventorySearch(scannedTag);
+      showToast(`QR scanned: showing asset "${scannedTag}"`);
+      params.delete('asset');
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  }, [cloudReady, showToast]);
+
   // Enrich laboratories with live counts across all synced records
   const laboratories = useMemo<Laboratory[]>(() => {
     return allLaboratories.map((lab) => {
