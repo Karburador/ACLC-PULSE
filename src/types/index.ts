@@ -62,7 +62,7 @@ export interface LoanRecord {
   _id?: string;
   borrowerName: string;
   borrowerIdNumber: string; // Student or Faculty ID
-  borrowerRole: 'Student' | 'Faculty' | 'Staff' | 'TESDA Scholar';
+  borrowerRole: 'Faculty' | 'Instructor' | 'Admin' | 'Student' | 'Staff' | 'TESDA Scholar';
   departmentSection: string; // e.g. BSCS-3A, ACT-2B, TVET-CSS, BSIT-4B
   assetId: string;
   assetTag: string;

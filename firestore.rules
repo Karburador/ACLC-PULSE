@@ -107,7 +107,7 @@ service cloud.firestore {
         && isValidId(data.id)
         && data.borrowerName is string && data.borrowerName.size() >= 1 && data.borrowerName.size() <= 120
         && data.borrowerIdNumber is string && data.borrowerIdNumber.size() >= 1 && data.borrowerIdNumber.size() <= 64
-        && data.borrowerRole in ['Student', 'Faculty', 'Staff', 'TESDA Scholar']
+        && data.borrowerRole in ['Faculty', 'Instructor', 'Admin', 'Student', 'Staff', 'TESDA Scholar']
         && data.departmentSection is string && data.departmentSection.size() >= 1 && data.departmentSection.size() <= 80
         && isValidId(data.assetId)
         && data.assetTag is string && data.assetTag.size() >= 1 && data.assetTag.size() <= 64

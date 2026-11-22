@@ -165,7 +165,7 @@
         },
         "borrowerRole": {
           "type": "string",
-          "enum": ["Student", "Faculty", "Staff", "TESDA Scholar"]
+          "enum": ["Faculty", "Instructor", "Admin", "Student", "Staff", "TESDA Scholar"]
         },
         "departmentSection": {
           "type": "string",

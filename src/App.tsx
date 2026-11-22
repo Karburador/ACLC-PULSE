@@ -52,6 +52,7 @@ export default function App() {
   // Modals & Inter-Module Action Context
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
+  const [assetToClone, setAssetToClone] = useState<Asset | null>(null);
 
   const [isBorrowModalOpen, setIsBorrowModalOpen] = useState(false);
   const [preselectedBorrowAsset, setPreselectedBorrowAsset] = useState<Asset | null>(null);
@@ -287,6 +288,7 @@ export default function App() {
     setPreselectedTagAsset(null);
     setPreselectedBorrowAsset(null);
     setAssetToEdit(null);
+    setAssetToClone(null);
     setInventoryCategory('ALL');
     setInventoryStatus('ALL');
     setInventorySearch('');
@@ -310,6 +312,7 @@ export default function App() {
       showToast(`Asset "${assetData.name}" registered and synced.`);
     }
     setAssetToEdit(null);
+    setAssetToClone(null);
   };
 
   const handleDeleteAsset = async (id: string, name: string) => {
@@ -425,6 +428,7 @@ export default function App() {
         }}
         onOpenNewAssetModal={() => {
           setAssetToEdit(null);
+          setAssetToClone(null);
           setIsAssetModalOpen(true);
         }}
         onRefresh={handleManualSyncToast}
@@ -472,6 +476,7 @@ export default function App() {
                 onNavigate={setActiveTab}
                 onOpenNewAsset={() => {
                   setAssetToEdit(null);
+                  setAssetToClone(null);
                   setIsAssetModalOpen(true);
                 }}
                 onOpenBorrow={() => {
@@ -508,7 +513,13 @@ export default function App() {
                   searchQuery={inventorySearch}
                   onSearchChange={setInventorySearch}
                   onEditAsset={(asset) => {
+                    setAssetToClone(null);
                     setAssetToEdit(asset);
+                    setIsAssetModalOpen(true);
+                  }}
+                  onCloneAsset={(asset) => {
+                    setAssetToEdit(null);
+                    setAssetToClone(asset);
                     setIsAssetModalOpen(true);
                   }}
                   onDeleteAsset={handleDeleteAsset}
@@ -516,6 +527,7 @@ export default function App() {
                   onPrintTag={handlePrintTagFromInventory}
                   onAddNewAsset={() => {
                     setAssetToEdit(null);
+                    setAssetToClone(null);
                     setIsAssetModalOpen(true);
                   }}
                 />
@@ -652,9 +664,11 @@ export default function App() {
         onClose={() => {
           setIsAssetModalOpen(false);
           setAssetToEdit(null);
+          setAssetToClone(null);
         }}
         onSave={handleSaveAsset}
         assetToEdit={assetToEdit}
+        assetToClone={assetToClone}
         defaultLab={currentLab === 'ALL' ? (laboratories[0]?.code || 'COMLAB') : currentLab}
         laboratories={laboratories}
         existingAssets={allAssets}
@@ -668,8 +682,11 @@ export default function App() {
           setPreselectedBorrowAsset(null);
         }}
         onIssueLoan={handleIssueLoan}
-        availableAssets={assets}
+        availableAssets={allAssets}
+        laboratories={laboratories}
+        currentLab={currentLab}
         preselectedAsset={preselectedBorrowAsset}
+        custodianName={user.displayName || user.email?.split('@')[0] || 'Lab Custodian'}
       />
 
       {/* Laboratory Management Modal */}

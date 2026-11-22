@@ -35,6 +35,7 @@ export const LoansTracker: React.FC<LoansTrackerProps> = ({
       const match =
         loan.borrowerName.toLowerCase().includes(q) ||
         loan.borrowerIdNumber.toLowerCase().includes(q) ||
+        loan.borrowerRole.toLowerCase().includes(q) ||
         loan.assetName.toLowerCase().includes(q) ||
         loan.assetTag.toLowerCase().includes(q) ||
         loan.departmentSection.toLowerCase().includes(q);
@@ -68,13 +69,13 @@ export const LoansTracker: React.FC<LoansTrackerProps> = ({
               Phase 2: Dispensing Hub
             </span>
             <span className="text-slate-400">·</span>
-            <span className="text-xs text-slate-600 font-semibold">Borrower Tracking & Circulation</span>
+            <span className="text-xs text-slate-600 font-semibold">Borrower Tracking &amp; Circulation</span>
           </div>
           <h2 className="text-xl font-black text-slate-950 tracking-tight">
-            Equipment Borrowing & Dispensing Ledger
+            Equipment Borrowing &amp; Dispensing Ledger
           </h2>
           <p className="text-xs text-slate-600 mt-0.5 font-normal">
-            Real-time custody tracking across students, faculty, and TESDA scholars with auto-return stock restoration.
+            Real-time custody tracking across faculty, instructors, admin staff, and students with auto-return stock restoration.
           </p>
         </div>
 

@@ -10,7 +10,7 @@
    - Creating a `LoanRecord` requires `assetId` to reference an existing `/assets/{assetId}` document (`exists(...)`), and updating/deleting resources validates document IDs via `isValidId()`.
    - Updating a `LoanRecord` into terminal `'Returned'` state locks it against subsequent mutations (`existing().status != 'Returned'`).
 4. **Strict Schema & Immutability**:
-   - Every `create` and `update` invokes its `isValid[Entity](incoming())` helper enforcing exact required/allowed keys (`hasAll` + `hasOnly`), string `.size()` bounds, enum constraints, positive/non-negative numeric ranges, immutable `ownerId` and `createdAt`, and server timestamp integrity (`request.time`).
+   - Every `create` and `update` invokes its `isValid[Entity](incoming())` helper enforcing exact required/allowed keys (`hasAll` + `hasOnly`), string `.size()` bounds, enum constraints (including `LoanRecord.borrowerRole` in `Faculty | Instructor | Admin | Student | Staff | TESDA Scholar`), positive/non-negative numeric ranges, immutable `ownerId` and `createdAt`, and server timestamp integrity (`request.time`).
 
 ## 2. Adversarial "Dirty Dozen" Payloads (Expected: PERMISSION_DENIED)
 1. **Unauthenticated read/list** on `/assets` without `request.auth`.

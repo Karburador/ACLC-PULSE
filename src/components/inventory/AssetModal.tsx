@@ -17,6 +17,7 @@ interface AssetModalProps {
   onClose: () => void;
   onSave: (assetData: Partial<Asset>) => Promise<void>;
   assetToEdit?: Asset | null;
+  assetToClone?: Asset | null;
   defaultLab?: string;
   laboratories?: Laboratory[];
   existingAssets?: Asset[];
@@ -75,6 +76,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
   onClose,
   onSave,
   assetToEdit,
+  assetToClone,
   defaultLab = 'COMLAB',
   laboratories = [],
   existingAssets = [],
@@ -135,6 +137,45 @@ export const AssetModal: React.FC<AssetModalProps> = ({
           specs: '',
         },
       });
+    } else if (assetToClone) {
+      setIsTagManual(false);
+      const targetLab = assetToClone.lab || defaultLab || 'COMLAB';
+      const targetCategory = assetToClone.category || 'Computers';
+      const generatedTag = generateSequentialTag(targetLab, targetCategory, existingAssets);
+      const hasMonitorData = Boolean(
+        assetToClone.monitorInfo?.brandModel ||
+          assetToClone.monitorInfo?.specs
+      );
+      const hasExtraDetails = Boolean(
+        assetToClone.brandModel ||
+          assetToClone.specs ||
+          assetToClone.notes ||
+          (assetToClone.unit && assetToClone.unit !== 'units')
+      );
+      setShowMonitor(targetCategory === 'Computers' && hasMonitorData);
+      setShowDetails(hasExtraDetails);
+      setCustomStockEdited(false);
+      const qty = Math.max(1, assetToClone.quantity || 1);
+      setFormData({
+        assetTag: generatedTag,
+        name: assetToClone.name || '',
+        category: targetCategory,
+        lab: targetLab,
+        status: 'Available',
+        quantity: qty,
+        availableQuantity: qty,
+        unit: assetToClone.unit || 'units',
+        brandModel: assetToClone.brandModel || '',
+        serialNumber: '',
+        specs: assetToClone.specs || '',
+        storageLocation: assetToClone.storageLocation || defaultStorageForLab(targetLab),
+        monitorInfo: {
+          brandModel: assetToClone.monitorInfo?.brandModel || '',
+          serialNumber: '',
+          specs: assetToClone.monitorInfo?.specs || '',
+        },
+        notes: assetToClone.notes || '',
+      });
     } else {
       setIsTagManual(false);
       setShowMonitor(false);
@@ -166,7 +207,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetToEdit, defaultLab, isOpen]);
+  }, [assetToEdit, assetToClone, defaultLab, isOpen]);
 
   if (!isOpen) return null;
 
@@ -274,11 +315,17 @@ export const AssetModal: React.FC<AssetModalProps> = ({
             />
             <div>
               <h2 className="text-sm sm:text-base font-bold tracking-tight text-blue-950 leading-tight">
-                {assetToEdit ? 'Edit Laboratory Asset' : 'Quick Add Asset'}
+                {assetToEdit
+                  ? 'Edit Laboratory Asset'
+                  : assetToClone
+                  ? 'Duplicate Asset'
+                  : 'Quick Add Asset'}
               </h2>
               <p className="text-[11px] text-slate-600 font-medium leading-tight">
                 {assetToEdit
                   ? 'Update item details below'
+                  : assetToClone
+                  ? `Cloned from ${assetToClone.assetTag} with next auto-tag ready`
                   : 'Enter item name, lab & category — extra details are optional'}
               </p>
             </div>

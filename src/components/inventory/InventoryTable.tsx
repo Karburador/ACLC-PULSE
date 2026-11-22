@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
   Info,
   Monitor,
+  Copy,
 } from 'lucide-react';
 
 interface InventoryTableProps {
@@ -35,6 +36,7 @@ interface InventoryTableProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onEditAsset: (asset: Asset) => void;
+  onCloneAsset: (asset: Asset) => void;
   onDeleteAsset: (id: string, name: string) => void;
   onQuickDispense: (asset: Asset) => void;
   onPrintTag: (asset: Asset) => void;
@@ -51,6 +53,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   searchQuery,
   onSearchChange,
   onEditAsset,
+  onCloneAsset,
   onDeleteAsset,
   onQuickDispense,
   onPrintTag,
@@ -279,7 +282,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                 <th className="px-3 py-3 min-w-[160px]">Cabinet / Shelf</th>
                 <th className="px-3 py-3 min-w-[110px] whitespace-nowrap">Status</th>
                 {/* STICKY ACTIONS HEADER: Always pinned on the right side */}
-                <th className="px-3 py-3 text-center sticky right-0 bg-slate-100 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.12)] z-20 w-[150px] min-w-[150px] border-l border-slate-300">
+                <th className="px-3 py-3 text-center sticky right-0 bg-slate-100 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.12)] z-20 w-[178px] min-w-[178px] border-l border-slate-300">
                   <div className="font-black text-slate-900 tracking-wider">ACTIONS</div>
                 </th>
               </tr>
@@ -424,13 +427,13 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                           {getStatusDisplay(asset.status)}
                         </td>
 
-                        {/* 9. STICKY ACTIONS COLUMN: Always visible with all 4 buttons */}
+                        {/* 9. STICKY ACTIONS COLUMN */}
                         <td
-                          className={`px-3 py-2.5 text-center whitespace-nowrap sticky right-0 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.12)] z-10 w-[150px] min-w-[150px] border-l border-slate-200 transition-colors ${
+                          className={`px-3 py-2.5 text-center whitespace-nowrap sticky right-0 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.12)] z-10 w-[178px] min-w-[178px] border-l border-slate-200 transition-colors ${
                             isExpanded ? 'bg-blue-50' : 'bg-white group-hover:bg-blue-50/95'
                           }`}
                         >
-                          <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1">
                             {/* Quick Dispense Action */}
                             <button
                               onClick={() => onQuickDispense(asset)}
@@ -452,6 +455,15 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                               className="p-1.5 text-blue-900 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md transition-colors cursor-pointer shadow-2xs"
                             >
                               <QrCode className="w-4 h-4 stroke-[2.5]" />
+                            </button>
+
+                            {/* Clone / Duplicate Asset */}
+                            <button
+                              onClick={() => onCloneAsset(asset)}
+                              title="Clone / Duplicate as New Asset"
+                              className="p-1.5 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Copy className="w-4 h-4 stroke-[2]" />
                             </button>
 
                             {/* Edit Asset */}
@@ -494,6 +506,12 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     className="flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 px-2.5 py-1 rounded border border-blue-200 cursor-pointer"
                                   >
                                     <Eye className="w-3.5 h-3.5" /> Open Full Passport
+                                  </button>
+                                  <button
+                                    onClick={() => onCloneAsset(asset)}
+                                    className="flex items-center gap-1 text-xs font-bold text-emerald-900 hover:text-emerald-950 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 cursor-pointer"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" /> Clone
                                   </button>
                                   <button
                                     onClick={() => onEditAsset(asset)}
@@ -748,7 +766,17 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                 Close
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    const a = inspectingAsset;
+                    setInspectingAsset(null);
+                    onCloneAsset(a);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg cursor-pointer shadow-xs"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Clone
+                </button>
                 <button
                   onClick={() => {
                     const a = inspectingAsset;
