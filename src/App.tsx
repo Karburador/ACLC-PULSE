@@ -466,6 +466,9 @@ export default function App() {
               <DashboardOverview
                 currentLab={currentLab}
                 metrics={metrics}
+                assets={assets}
+                loans={loans}
+                maintenance={maintenance}
                 onNavigate={setActiveTab}
                 onOpenNewAsset={() => {
                   setAssetToEdit(null);
