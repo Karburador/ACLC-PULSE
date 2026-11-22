@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Asset, AssetCategory, AssetStatus, Laboratory } from '../../types';
 import { DEFAULT_STORAGE_LAYOUTS } from '../../data/storageLayouts';
-import { X, Save, AlertCircle, Sparkles, Monitor } from 'lucide-react';
+import {
+  X,
+  Save,
+  AlertCircle,
+  Sparkles,
+  Monitor,
+  ChevronDown,
+  ChevronUp,
+  PlusCircle,
+} from 'lucide-react';
 
 interface AssetModalProps {
   isOpen: boolean;
@@ -50,6 +59,17 @@ function generateSequentialTag(
   return `${basePrefix}${String(next).padStart(2, '0')}`;
 }
 
+function defaultStorageForLab(labCode: string) {
+  const labLayout = DEFAULT_STORAGE_LAYOUTS.find(
+    (l) => l.lab.toUpperCase() === labCode.toUpperCase()
+  );
+  return {
+    rackOrCabinet: labLayout?.cabinets[0]?.name.split(' (')[0] || 'Long Table 1',
+    shelf: labCode.toUpperCase() === 'COMLAB' ? 'Under Table (CPU Bay)' : 'Under Table / Direct',
+    slot: labCode.toUpperCase() === 'COMLAB' ? 'Set 1 of 7' : 'Bay 1',
+  };
+}
+
 export const AssetModal: React.FC<AssetModalProps> = ({
   isOpen,
   onClose,
@@ -59,6 +79,8 @@ export const AssetModal: React.FC<AssetModalProps> = ({
   laboratories = [],
   existingAssets = [],
 }) => {
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState<Partial<Asset>>({
     assetTag: '',
     name: '',
@@ -71,28 +93,42 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     brandModel: '',
     serialNumber: '',
     specs: '',
-    storageLocation: {
-      rackOrCabinet: 'Cabinet COM-A',
-      shelf: 'Shelf 1',
-      slot: 'Bay 1',
-    },
+    storageLocation: defaultStorageForLab(defaultLab),
+    monitorInfo: { brandModel: '', serialNumber: '', specs: '' },
     notes: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTagManual, setIsTagManual] = useState(false);
+  const [showMonitor, setShowMonitor] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [customStockEdited, setCustomStockEdited] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (assetToEdit) {
       setIsTagManual(true);
+      const hasMonitorData = Boolean(
+        assetToEdit.monitorInfo?.brandModel ||
+          assetToEdit.monitorInfo?.serialNumber ||
+          assetToEdit.monitorInfo?.specs
+      );
+      const hasExtraDetails = Boolean(
+        assetToEdit.brandModel ||
+          assetToEdit.serialNumber ||
+          assetToEdit.specs ||
+          assetToEdit.notes ||
+          (assetToEdit.unit && assetToEdit.unit !== 'units') ||
+          assetToEdit.availableQuantity !== assetToEdit.quantity
+      );
+      setShowMonitor(assetToEdit.category === 'Computers' && hasMonitorData);
+      setShowDetails(hasExtraDetails);
+      setCustomStockEdited(assetToEdit.availableQuantity !== assetToEdit.quantity);
       setFormData({
         ...assetToEdit,
-        storageLocation: assetToEdit.storageLocation || {
-          rackOrCabinet: '',
-          shelf: '',
-          slot: '',
-        },
+        storageLocation: assetToEdit.storageLocation || defaultStorageForLab(assetToEdit.lab || 'COMLAB'),
         monitorInfo: assetToEdit.monitorInfo || {
           brandModel: '',
           serialNumber: '',
@@ -101,12 +137,12 @@ export const AssetModal: React.FC<AssetModalProps> = ({
       });
     } else {
       setIsTagManual(false);
+      setShowMonitor(false);
+      setShowDetails(false);
+      setCustomStockEdited(false);
       const targetLab = defaultLab === 'ALL' ? (laboratories[0]?.code || 'COMLAB') : defaultLab;
       const initialCategory: AssetCategory = 'Computers';
       const generatedTag = generateSequentialTag(targetLab, initialCategory, existingAssets);
-      const labLayout = DEFAULT_STORAGE_LAYOUTS.find(
-        (l) => l.lab.toUpperCase() === targetLab.toUpperCase()
-      );
       setFormData({
         assetTag: generatedTag,
         name: '',
@@ -119,11 +155,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
         brandModel: '',
         serialNumber: '',
         specs: '',
-        storageLocation: {
-          rackOrCabinet: labLayout?.cabinets[0]?.name.split(' (')[0] || `Long Table 1`,
-          shelf: targetLab.toUpperCase() === 'COMLAB' ? 'Under Table (CPU Bay)' : 'Under Table / Direct',
-          slot: targetLab.toUpperCase() === 'COMLAB' ? 'Set 1 of 7' : 'Bay 1',
-        },
+        storageLocation: defaultStorageForLab(targetLab),
         monitorInfo: {
           brandModel: '',
           serialNumber: '',
@@ -138,28 +170,44 @@ export const AssetModal: React.FC<AssetModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveAsset = async (keepOpenForNext: boolean) => {
     if (!formData.name?.trim()) {
-      setError('Item name is required');
+      setError('Asset / Item Name is required.');
+      nameInputRef.current?.focus();
       return;
     }
     if (!formData.assetTag?.trim()) {
-      setError('Asset tag identifier is required');
+      setError('Asset Tag is required.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       setError(null);
+      const qty = Math.max(0, Number(formData.quantity) || 0);
+      const avail = customStockEdited
+        ? Math.max(0, Math.min(qty, Number(formData.availableQuantity) || 0))
+        : qty;
+
       const monBrand = formData.monitorInfo?.brandModel?.trim() || '';
       const monSerial = formData.monitorInfo?.serialNumber?.trim() || '';
       const monSpecs = formData.monitorInfo?.specs?.trim() || '';
       const hasMonitor =
-        formData.category === 'Computers' && Boolean(monBrand || monSerial || monSpecs);
+        formData.category === 'Computers' &&
+        showMonitor &&
+        Boolean(monBrand || monSerial || monSpecs);
+
+      const cleanTag = formData.assetTag.trim().toUpperCase();
+      const targetLab = formData.lab || 'COMLAB';
+      const targetCategory = (formData.category as AssetCategory) || 'Computers';
 
       const normalizedData: Partial<Asset> = {
         ...formData,
+        assetTag: cleanTag,
+        name: formData.name.trim(),
+        quantity: qty,
+        availableQuantity: avail,
+        unit: formData.unit?.trim() || 'units',
         storageLocation: {
           rackOrCabinet: formData.storageLocation?.rackOrCabinet?.trim() || 'Long Table 1',
           shelf: formData.storageLocation?.shelf?.trim() || 'Under Table (No Shelf)',
@@ -171,10 +219,36 @@ export const AssetModal: React.FC<AssetModalProps> = ({
               serialNumber: monSerial,
               specs: monSpecs,
             }
+          : assetToEdit
+          ? {}
           : undefined,
       };
+
       await onSave(normalizedData);
-      onClose();
+
+      if (keepOpenForNext && !assetToEdit) {
+        const updatedAssetList = [...existingAssets, { assetTag: cleanTag } as Asset];
+        const nextTag = generateSequentialTag(targetLab, targetCategory, updatedAssetList);
+        setIsTagManual(false);
+        setCustomStockEdited(false);
+        setFormData((prev) => ({
+          ...prev,
+          assetTag: nextTag,
+          name: '',
+          quantity: 1,
+          availableQuantity: 1,
+          serialNumber: '',
+          monitorInfo: {
+            brandModel: prev.monitorInfo?.brandModel || '',
+            serialNumber: '',
+            specs: prev.monitorInfo?.specs || '',
+          },
+          notes: '',
+        }));
+        setTimeout(() => nameInputRef.current?.focus(), 40);
+      } else {
+        onClose();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save asset');
     } finally {
@@ -182,11 +256,16 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveAsset(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="w-full max-w-2xl bg-white border-2 border-slate-300 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
-        {/* Compact Header */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 sm:py-3 bg-slate-50 border-b-2 border-slate-200 text-slate-900 shrink-0">
+      <div className="w-full max-w-xl bg-white border-2 border-slate-300 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 bg-slate-50 border-b-2 border-slate-200 text-slate-900 shrink-0">
           <div className="flex items-center gap-2.5">
             <img
               src="/assets/aistudio/ACLC_3c4418b0.png"
@@ -195,10 +274,12 @@ export const AssetModal: React.FC<AssetModalProps> = ({
             />
             <div>
               <h2 className="text-sm sm:text-base font-bold tracking-tight text-blue-950 leading-tight">
-                {assetToEdit ? 'Edit Laboratory Asset' : 'Add New Laboratory Asset'}
+                {assetToEdit ? 'Edit Laboratory Asset' : 'Quick Add Asset'}
               </h2>
               <p className="text-[11px] text-slate-600 font-medium leading-tight">
-                ACLC College of Manila · ACLC-Pulse Inventory Registry
+                {assetToEdit
+                  ? 'Update item details below'
+                  : 'Enter item name, lab & category — extra details are optional'}
               </p>
             </div>
           </div>
@@ -212,17 +293,33 @@ export const AssetModal: React.FC<AssetModalProps> = ({
         </div>
 
         {error && (
-          <div className="mx-4 sm:mx-5 mt-2.5 px-3 py-2 rounded-lg bg-rose-50 border border-rose-300 flex items-center gap-2 text-rose-900 text-xs font-semibold shrink-0">
+          <div className="mx-4 sm:mx-5 mt-3 px-3 py-2 rounded-lg bg-rose-50 border border-rose-300 flex items-center gap-2 text-rose-900 text-xs font-semibold shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-700" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="px-4 sm:px-5 py-3.5 space-y-2.5 overflow-y-auto text-slate-900 flex-1">
-          {/* Row 1: Asset Tag, Item Name, Status */}
+        <form onSubmit={handleSubmit} className="px-4 sm:px-5 py-4 space-y-3 overflow-y-auto text-slate-900 flex-1">
+          {/* Essential Row 1: Item Name + Auto Asset Tag */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+            <div className="sm:col-span-8">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Asset / Item Name *
+              </label>
+              <input
+                ref={nameInputRef}
+                type="text"
+                required
+                autoFocus={!assetToEdit}
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. Dell OptiPlex PC 01, Cisco Router, Crimping Tool"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+              />
+            </div>
+
             <div className="sm:col-span-4">
-              <div className="flex items-center justify-between mb-0.5">
+              <div className="flex items-center justify-between mb-1">
                 <label className="block text-[11px] font-bold text-slate-700">
                   Asset Tag *
                 </label>
@@ -255,53 +352,21 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                   setFormData({ ...formData, assetTag: e.target.value.toUpperCase() });
                 }}
                 placeholder="ACLC-COM-PC01"
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-blue-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-blue-900 focus:outline-none focus:border-blue-600 focus:bg-white"
               />
-            </div>
-
-            <div className="sm:col-span-5">
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Asset / Item Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name || ''}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Dell OptiPlex 7090 Desktop Workstation"
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-              />
-            </div>
-
-            <div className="sm:col-span-3">
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Status *
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as AssetStatus })}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
-              >
-                <option value="Available">Available</option>
-                <option value="In Use">In Use</option>
-                <option value="Under Maintenance">Under Maintenance</option>
-              </select>
             </div>
           </div>
 
-          {/* Row 2: Lab, Category, Quantity/Available/Unit */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-            <div className="sm:col-span-4">
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+          {/* Essential Row 2: Lab, Category, Qty, Status */}
+          <div className="grid grid-cols-2 sm:grid-cols-12 gap-2.5">
+            <div className="col-span-1 sm:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
                 Laboratory *
               </label>
               <select
                 value={formData.lab}
                 onChange={(e) => {
                   const nextLab = e.target.value;
-                  const nextLayout = DEFAULT_STORAGE_LAYOUTS.find(
-                    (l) => l.lab.toUpperCase() === nextLab.toUpperCase()
-                  );
                   const nextTag =
                     !assetToEdit && !isTagManual
                       ? generateSequentialTag(
@@ -315,21 +380,11 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                     lab: nextLab,
                     assetTag: nextTag,
                     storageLocation: !assetToEdit
-                      ? {
-                          rackOrCabinet:
-                            nextLayout?.cabinets[0]?.name.split(' (')[0] ||
-                            `Cabinet ${nextLab}-A`,
-                          shelf:
-                            nextLab.toUpperCase() === 'COMLAB'
-                              ? 'Under Table (CPU Bay)'
-                              : 'Under Table / Direct',
-                          slot:
-                            nextLab.toUpperCase() === 'COMLAB' ? 'Set 1 of 7' : 'Bay 1',
-                        }
+                      ? defaultStorageForLab(nextLab)
                       : prev.storageLocation,
                   }));
                 }}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
+                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
                 {laboratories.length > 0 ? (
                   laboratories.map((lab) => (
@@ -347,8 +402,8 @@ export const AssetModal: React.FC<AssetModalProps> = ({
               </select>
             </div>
 
-            <div className="sm:col-span-4">
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+            <div className="col-span-1 sm:col-span-4">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
                 Category *
               </label>
               <select
@@ -369,219 +424,261 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                     assetTag: nextTag,
                   }));
                 }}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
+                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
-                <option value="Computers">Computers & Servers</option>
-                <option value="Routers">Routers & Switches</option>
-                <option value="Tools">Tools & Meters</option>
-                <option value="Projectors">Projectors & Displays</option>
+                <option value="Computers">Computers &amp; Servers</option>
+                <option value="Routers">Routers &amp; Switches</option>
+                <option value="Tools">Tools &amp; Meters</option>
+                <option value="Projectors">Projectors &amp; Displays</option>
                 <option value="Peripherals">Peripherals</option>
                 <option value="Consumables">Consumables</option>
               </select>
             </div>
 
-            <div className="sm:col-span-4 grid grid-cols-3 gap-1.5">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Qty *</label>
-                <input
-                  type="number"
-                  min="0"
-                  required
-                  value={formData.quantity || 0}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 0;
-                    setFormData({
-                      ...formData,
-                      quantity: val,
-                      availableQuantity: Math.min(val, formData.availableQuantity || val),
-                    });
-                  }}
-                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-                />
+            <div className="col-span-1 sm:col-span-2">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Qty *</label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={formData.quantity ?? 1}
+                onChange={(e) => {
+                  const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                  setFormData((prev) => ({
+                    ...prev,
+                    quantity: val,
+                    availableQuantity: customStockEdited
+                      ? Math.min(val, prev.availableQuantity ?? val)
+                      : val,
+                  }));
+                }}
+                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+              />
+            </div>
+
+            <div className="col-span-1 sm:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as AssetStatus })}
+                className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
+              >
+                <option value="Available">Available</option>
+                <option value="In Use">In Use</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Optional Toggles Bar (Monitor for Computers + More Details) */}
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {formData.category === 'Computers' && (
+              <button
+                type="button"
+                onClick={() => setShowMonitor((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
+                  showMonitor
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                    : 'bg-slate-50 hover:bg-emerald-50/70 border-slate-300 text-slate-700'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5 text-emerald-700" />
+                <span>{showMonitor ? 'Paired Monitor Included' : '+ Add Paired Monitor'}</span>
+                {showMonitor ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowDetails((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
+                showDetails
+                  ? 'bg-blue-50 border-blue-300 text-blue-900'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-700'
+              }`}
+            >
+              <span>{showDetails ? 'Hide Extra Details' : '+ Brand, Serial, Specs & Notes'}</span>
+              {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Expandable Paired Monitor Section (Computers only) */}
+          {formData.category === 'Computers' && showMonitor && (
+            <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-900 uppercase tracking-wide">
+                  <Monitor className="w-3.5 h-3.5 text-emerald-700" />
+                  Paired Monitor (Optional)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowMonitor(false)}
+                  className="text-[11px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                >
+                  Collapse
+                </button>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Stock</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <input
-                  type="number"
-                  min="0"
-                  max={formData.quantity || 0}
-                  value={formData.availableQuantity || 0}
+                  type="text"
+                  value={formData.monitorInfo?.brandModel || ''}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      availableQuantity: parseInt(e.target.value) || 0,
+                      monitorInfo: { ...formData.monitorInfo, brandModel: e.target.value },
                     })
                   }
-                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  placeholder="Monitor Brand (e.g. Dell 24&quot;)"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
                 />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Unit</label>
                 <input
                   type="text"
-                  value={formData.unit || 'units'}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  placeholder="units"
-                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  value={formData.monitorInfo?.serialNumber || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      monitorInfo: { ...formData.monitorInfo, serialNumber: e.target.value },
+                    })
+                  }
+                  placeholder="Monitor Serial (MON-SN-001)"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-600"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 3: Brand & Model + Serial Number */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Brand & Model
-              </label>
-              <input
-                type="text"
-                value={formData.brandModel || ''}
-                onChange={(e) => setFormData({ ...formData, brandModel: e.target.value })}
-                placeholder="e.g. Cisco ISR 2911 / Hakko FX-888D"
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Serial Number / Service Tag
-              </label>
-              <input
-                type="text"
-                value={formData.serialNumber || ''}
-                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                placeholder="Manufacturer serial / Service Tag"
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          {/* Conditional Paired Monitor Section (Only when Category === 'Computers') */}
-          {formData.category === 'Computers' && (
-            <div className="px-3 py-2 bg-emerald-50/60 border border-emerald-200 rounded-lg space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-900 uppercase tracking-wide">
-                  <Monitor className="w-3.5 h-3.5 text-emerald-700" />
-                  Paired Monitor (PC Set)
-                </span>
-                <span className="text-[10px] font-medium text-slate-600">
-                  Optional display attached to this PC workstation
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                    Monitor Brand / Model
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.monitorInfo?.brandModel || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        monitorInfo: {
-                          ...formData.monitorInfo,
-                          brandModel: e.target.value,
-                        },
-                      })
-                    }
-                    placeholder="e.g. Dell 24&quot; IPS / Acer KA222Q"
-                    className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-emerald-600 font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                    Monitor Serial / Tag
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.monitorInfo?.serialNumber || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        monitorInfo: {
-                          ...formData.monitorInfo,
-                          serialNumber: e.target.value,
-                        },
-                      })
-                    }
-                    placeholder="e.g. MON-SN-001"
-                    className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-600 font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                    Size / Specs
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.monitorInfo?.specs || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        monitorInfo: {
-                          ...formData.monitorInfo,
-                          specs: e.target.value,
-                        },
-                      })
-                    }
-                    placeholder="e.g. 24&quot; 1080p HDMI/VGA"
-                    className="w-full px-2.5 py-1 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-emerald-600 font-medium"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={formData.monitorInfo?.specs || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      monitorInfo: { ...formData.monitorInfo, specs: e.target.value },
+                    })
+                  }
+                  placeholder="Size / Specs (24&quot; 1080p)"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
+                />
               </div>
             </div>
           )}
 
-          {/* Row 5: Technical Specs & Notes side-by-side */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Technical Specifications
-              </label>
-              <input
-                type="text"
-                value={formData.specs || ''}
-                onChange={(e) => setFormData({ ...formData, specs: e.target.value })}
-                placeholder="e.g. Core i7, 16GB RAM, 512GB SSD"
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-              />
-            </div>
+          {/* Expandable Optional Details Section */}
+          {showDetails && (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Brand &amp; Model
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.brandModel || ''}
+                    onChange={(e) => setFormData({ ...formData, brandModel: e.target.value })}
+                    placeholder="e.g. Dell OptiPlex 7090"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Serial Number / Service Tag
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.serialNumber || ''}
+                    onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                    placeholder="Manufacturer serial"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Custodian Remarks / Notes
-              </label>
-              <input
-                type="text"
-                value={formData.notes || ''}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Inspection notes or loan conditions..."
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                <div className="sm:col-span-6">
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Technical Specs
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.specs || ''}
+                    onChange={(e) => setFormData({ ...formData, specs: e.target.value })}
+                    placeholder="e.g. Core i7, 16GB RAM, 512GB SSD"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Available Stock
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={formData.quantity ?? 0}
+                    value={formData.availableQuantity ?? 1}
+                    onChange={(e) => {
+                      setCustomStockEdited(true);
+                      setFormData({
+                        ...formData,
+                        availableQuantity: parseInt(e.target.value, 10) || 0,
+                      });
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.unit || 'units'}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    placeholder="units"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              </div>
 
-          {/* Compact Footer */}
-          <div className="flex items-center justify-end gap-2.5 pt-2.5 border-t border-slate-200">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                  Remarks / Notes
+                </label>
+                <input
+                  type="text"
+                  value={formData.notes || ''}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Optional inspection notes..."
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
+
+            {!assetToEdit && (
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => saveAsset(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Save &amp; Add Next</span>
+              </button>
+            )}
+
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>{isSubmitting ? 'Saving...' : assetToEdit ? 'Save Changes' : 'Create Asset'}</span>
+              <span>{isSubmitting ? 'Saving...' : assetToEdit ? 'Save Changes' : 'Save Asset'}</span>
             </button>
           </div>
         </form>
