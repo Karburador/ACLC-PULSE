@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
-import { auth, googleProvider } from './firebase';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { auth } from './firebase';
 import { firestoreSync } from './services/firestoreSync';
 import { LabType, Asset, LoanRecord, MaintenanceTask, Laboratory } from './types';
+import { AuthScreen } from './components/auth/AuthScreen';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavigationTab, MobileBottomNav } from './components/layout/Sidebar';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
@@ -22,16 +23,13 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Cloud,
   RefreshCw,
-  ShieldCheck,
 } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [authReady, setAuthReady] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
 
@@ -79,8 +77,9 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setIsEmailVerified(Boolean(currentUser?.emailVerified));
       setAuthReady(true);
-      if (!currentUser) {
+      if (!currentUser || !currentUser.emailVerified) {
         setCloudReady(false);
         setAllAssets([]);
         setAllLoans([]);
@@ -91,9 +90,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Real-Time Firestore Listeners (attached only after auth is ready & user signed in)
+  // Real-Time Firestore Listeners (attached only after auth is ready, user signed in & verified)
   useEffect(() => {
-    if (!authReady || !user) return;
+    if (!authReady || !user || !isEmailVerified) return;
 
     let active = true;
     let unsubSync: (() => void) | null = null;
@@ -132,7 +131,7 @@ export default function App() {
       active = false;
       if (unsubSync) unsubSync();
     };
-  }, [authReady, user]);
+  }, [authReady, user, isEmailVerified]);
 
   // Handle QR Code deep link (?asset=ACLC-COM-PC01) once cloud sync is ready
   useEffect(() => {
@@ -238,25 +237,6 @@ export default function App() {
     };
   }, [allAssets, loans, maintenance, currentLab, cloudReady]);
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setSigningIn(true);
-      setAuthError(null);
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      if (err?.code === 'auth/unauthorized-domain') {
-        const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
-        setAuthError(
-          `Domain "${host}" is not authorized in Firebase Authentication. Add it under Firebase Console → Authentication → Settings → Authorized domains.`
-        );
-      } else {
-        setAuthError(err?.message || 'Google Sign-In failed. Please try again.');
-      }
-    } finally {
-      setSigningIn(false);
-    }
-  };
-
   const handleSignOut = async () => {
     await signOut(auth);
   };
@@ -279,7 +259,8 @@ export default function App() {
   };
 
   const handleUpdateLaboratory = async (code: string, updates: Partial<Laboratory>) => {
-    await firestoreSync.updateLaboratory(code, updates);
+    if (!user) return;
+    await firestoreSync.updateLaboratory(user, code, updates);
     showToast(`Laboratory ${code} updated and synced.`);
   };
 
@@ -392,60 +373,16 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (!user || !isEmailVerified) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-900">
-        <div className="w-full max-w-md bg-white border-2 border-slate-300 rounded-2xl shadow-xl p-6 sm:p-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <img
-              src="/assets/aistudio/ACLC_3c4418b0.png"
-              alt="ACLC College of Manila Seal"
-              className="w-16 h-16 object-contain rounded-full bg-white p-1 border-2 border-blue-900 shrink-0 shadow-xs"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-kabel text-2xl font-bold text-blue-950 tracking-normal">ACLC-Pulse</h1>
-                <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-400">
-                  MANILA
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                Laboratory Asset &amp; Inventory Hub
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-extrabold text-blue-950">
-              <Cloud className="w-4 h-4 text-blue-700" />
-              <span>Real-Time Cross-Browser Cloud Sync</span>
-            </div>
-            <p className="text-xs text-slate-700 leading-relaxed font-medium">
-              Sign in with your Google account to sync all laboratory assets, loans, maintenance tickets, and resets in real time across every browser and device.
-            </p>
-          </div>
-
-          {authError && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 text-xs font-semibold text-rose-900 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
-              <span>{authError}</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={signingIn}
-            className="w-full py-3 px-4 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2.5"
-          >
-            <ShieldCheck className="w-5 h-5" />
-            <span>{signingIn ? 'Signing in...' : 'Sign in with Google to Sync'}</span>
-          </button>
-
-          <p className="text-[11px] text-center text-slate-500 font-medium">
-            Use the same Google account in other browsers to keep everything automatically synchronized.
-          </p>
-        </div>
-      </div>
+      <AuthScreen
+        pendingVerificationUser={user && !isEmailVerified ? user : null}
+        onVerificationConfirmed={() => {
+          setIsEmailVerified(Boolean(auth.currentUser?.emailVerified));
+          setUser(auth.currentUser);
+        }}
+        onSignOut={handleSignOut}
+      />
     );
   }
 
@@ -498,6 +435,7 @@ export default function App() {
         onOpenLabModal={() => setIsLabModalOpen(true)}
         onOpenResetModal={() => setIsResetModalOpen(true)}
         userEmail={user.email}
+        userDisplayName={user.displayName}
         onSignOut={handleSignOut}
       />
 
@@ -515,6 +453,9 @@ export default function App() {
           onCloseMobile={() => setIsMobileMenuOpen(false)}
           laboratories={laboratories}
           onOpenLabModal={() => setIsLabModalOpen(true)}
+          userEmail={user.email}
+          userDisplayName={user.displayName}
+          onSignOut={handleSignOut}
         />
 
         {/* Main Application Canvas */}

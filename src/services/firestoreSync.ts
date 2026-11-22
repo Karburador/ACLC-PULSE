@@ -114,11 +114,21 @@ function clampStr(raw: unknown, maxLen: number, fallback = ''): string {
   return raw.trim().slice(0, maxLen);
 }
 
+function getMetaDocId(user: User): string {
+  return isCampusAdmin(user) ? 'catalog' : `catalog_${user.uid}`;
+}
+
+function getLabDocId(user: User, code: string): string {
+  const upper = sanitizeLabCode(code);
+  return isCampusAdmin(user) ? upper : `${user.uid}_${upper}`;
+}
+
+function getItemPrefix(user: User): string {
+  return isCampusAdmin(user) ? '' : `${user.uid.slice(0, 10)}_`;
+}
+
 function buildScopedQuery(user: User, colName: string): Query<DocumentData> {
   const colRef = collection(db, colName);
-  if (isCampusAdmin(user)) {
-    return colRef;
-  }
   return query(colRef, where('ownerId', '==', user.uid));
 }
 
@@ -212,17 +222,17 @@ export const firestoreSync = {
    * Respects system_meta/catalog.mode === 'zero' so Reset to 0 NEVER re-seeds across browsers.
    */
   async ensureInitialized(user: User): Promise<void> {
-    if (!isCampusAdmin(user)) {
-      // Non-bootstrapped users operate on their own scoped documents without touching global catalog marker
+    if (!user.emailVerified) {
       return;
     }
 
-    const metaRef = doc(db, 'system_meta', 'catalog');
+    const metaDocId = getMetaDocId(user);
+    const metaRef = doc(db, 'system_meta', metaDocId);
     let metaSnap;
     try {
       metaSnap = await getDoc(metaRef);
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, 'system_meta/catalog');
+      handleFirestoreError(err, OperationType.GET, `system_meta/${metaDocId}`);
     }
 
     if (metaSnap.exists()) {
@@ -247,7 +257,7 @@ export const firestoreSync = {
           updatedAt: serverTimestamp(),
         });
       } catch (err) {
-        handleFirestoreError(err, OperationType.CREATE, 'system_meta/catalog');
+        handleFirestoreError(err, OperationType.CREATE, `system_meta/${metaDocId}`);
       }
       return;
     }
@@ -258,6 +268,8 @@ export const firestoreSync = {
   async seedDefaultCatalog(user: User, wipeExisting = true): Promise<void> {
     try {
       const ops: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
+      const prefix = getItemPrefix(user);
+      const metaDocId = getMetaDocId(user);
 
       if (wipeExisting) {
         const [assetsSnap, loansSnap, maintSnap, labsSnap] = await Promise.all([
@@ -274,7 +286,7 @@ export const firestoreSync = {
       }
 
       for (const lab of DEFAULT_LABORATORIES) {
-        const ref = doc(db, 'laboratories', lab.code);
+        const ref = doc(db, 'laboratories', getLabDocId(user, lab.code));
         ops.push((b) =>
           b.set(ref, {
             code: lab.code,
@@ -290,14 +302,17 @@ export const firestoreSync = {
         );
       }
 
+      const assetIdMap = new Map<string, string>();
       for (const asset of INITIAL_ASSETS) {
-        const id = sanitizeId(asset.id, 'asset');
+        const id = sanitizeId(`${prefix}${asset.id}`, 'asset');
+        assetIdMap.set(asset.id, id);
         const ref = doc(db, 'assets', id);
         ops.push((b) => b.set(ref, buildAssetPayload(asset, id, user.uid, true)));
       }
 
       for (const loan of INITIAL_LOANS) {
-        const id = sanitizeId(loan.id, 'loan');
+        const id = sanitizeId(`${prefix}${loan.id}`, 'loan');
+        const mappedAssetId = assetIdMap.get(loan.assetId) || sanitizeId(`${prefix}${loan.assetId}`, 'asset');
         const ref = doc(db, 'loans', id);
         ops.push((b) =>
           b.set(ref, {
@@ -306,7 +321,7 @@ export const firestoreSync = {
             borrowerIdNumber: clampStr(loan.borrowerIdNumber, 64),
             borrowerRole: loan.borrowerRole,
             departmentSection: clampStr(loan.departmentSection, 80),
-            assetId: sanitizeId(loan.assetId, 'asset'),
+            assetId: mappedAssetId,
             assetTag: clampStr(loan.assetTag, 64),
             assetName: clampStr(loan.assetName, 160),
             lab: sanitizeLabCode(loan.lab),
@@ -324,7 +339,7 @@ export const firestoreSync = {
       }
 
       for (const task of INITIAL_MAINTENANCE) {
-        const id = sanitizeId(task.id, 'maint');
+        const id = sanitizeId(`${prefix}${task.id}`, 'maint');
         const ref = doc(db, 'maintenance', id);
         const taskPayload: Record<string, any> = {
           id,
@@ -341,7 +356,9 @@ export const firestoreSync = {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
-        if (task.assetId) taskPayload.assetId = sanitizeId(task.assetId, 'asset');
+        if (task.assetId) {
+          taskPayload.assetId = assetIdMap.get(task.assetId) || sanitizeId(`${prefix}${task.assetId}`, 'asset');
+        }
         if (task.assetTag) taskPayload.assetTag = clampStr(task.assetTag, 64);
         if (task.diagnosis) taskPayload.diagnosis = clampStr(task.diagnosis, 600);
         if (task.completedDate) taskPayload.completedDate = clampStr(task.completedDate, 40);
@@ -349,18 +366,16 @@ export const firestoreSync = {
         ops.push((b) => b.set(ref, taskPayload));
       }
 
-      if (isCampusAdmin(user)) {
-        const metaRef = doc(db, 'system_meta', 'catalog');
-        ops.push((b) =>
-          b.set(metaRef, {
-            initialized: true,
-            mode: 'default',
-            ownerId: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-        );
-      }
+      const metaRef = doc(db, 'system_meta', metaDocId);
+      ops.push((b) =>
+        b.set(metaRef, {
+          initialized: true,
+          mode: 'default',
+          ownerId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
 
       await commitBatchedOperations(ops);
     } catch (err) {
@@ -381,28 +396,27 @@ export const firestoreSync = {
       loansSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
       maintSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
 
-      if (isCampusAdmin(user)) {
-        const metaRef = doc(db, 'system_meta', 'catalog');
-        const metaSnap = await getDoc(metaRef);
-        if (metaSnap.exists()) {
-          ops.push((b) =>
-            b.update(metaRef, {
-              initialized: true,
-              mode: 'zero',
-              updatedAt: serverTimestamp(),
-            })
-          );
-        } else {
-          ops.push((b) =>
-            b.set(metaRef, {
-              initialized: true,
-              mode: 'zero',
-              ownerId: user.uid,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            })
-          );
-        }
+      const metaDocId = getMetaDocId(user);
+      const metaRef = doc(db, 'system_meta', metaDocId);
+      const metaSnap = await getDoc(metaRef);
+      if (metaSnap.exists()) {
+        ops.push((b) =>
+          b.update(metaRef, {
+            initialized: true,
+            mode: 'zero',
+            updatedAt: serverTimestamp(),
+          })
+        );
+      } else {
+        ops.push((b) =>
+          b.set(metaRef, {
+            initialized: true,
+            mode: 'zero',
+            ownerId: user.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
       }
 
       await commitBatchedOperations(ops);
@@ -536,17 +550,23 @@ export const firestoreSync = {
     const code = sanitizeLabCode(data.code);
     if (!code) throw new Error('Laboratory code identifier is required (e.g. ROBOTICS)');
 
-    const ref = doc(db, 'laboratories', code);
+    const docId = getLabDocId(user, code);
+    const ref = doc(db, 'laboratories', docId);
     try {
-      const existing = await getDoc(ref);
-      if (existing.exists()) {
+      const scopedLabsSnap = await getDocs(buildScopedQuery(user, 'laboratories'));
+      const duplicate = scopedLabsSnap.docs.find(
+        (d) =>
+          (d.data().code || '').toUpperCase() === code &&
+          (d.data().ownerId === user.uid || isCampusAdmin(user))
+      );
+      if (duplicate) {
         throw new Error(`Laboratory code "${code}" already exists.`);
       }
 
       const payload: Record<string, any> = {
         code,
         name: clampStr(data.name, 120, `${code} Laboratory`) || `${code} Laboratory`,
-        roomNumber: clampStr(data.roomNumber, 60, 'Room TBD') || 'Room TBD',
+        roomNumber: clampStr(data.roomNumber, 60, 'Campus Lab') || 'Campus Lab',
         capacity: Math.max(1, Math.min(10000, Number(data.capacity) || 30)),
         isCustom: true,
         ownerId: user.uid,
@@ -559,26 +579,33 @@ export const firestoreSync = {
       await setDoc(ref, payload);
     } catch (err: any) {
       if (err?.message?.includes('already exists')) throw err;
-      handleFirestoreError(err, OperationType.CREATE, `laboratories/${code}`);
+      handleFirestoreError(err, OperationType.CREATE, `laboratories/${docId}`);
     }
   },
 
-  async updateLaboratory(code: string, updates: Partial<Laboratory>) {
+  async updateLaboratory(user: User, code: string, updates: Partial<Laboratory>) {
     const upperCode = sanitizeLabCode(code);
-    const ref = doc(db, 'laboratories', upperCode);
     try {
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
+      const scopedLabsSnap = await getDocs(buildScopedQuery(user, 'laboratories'));
+      const targetDoc =
+        scopedLabsSnap.docs.find(
+          (d) => (d.data().code || '').toUpperCase() === upperCode && d.data().ownerId === user.uid
+        ) ||
+        scopedLabsSnap.docs.find((d) => (d.data().code || '').toUpperCase() === upperCode);
+
+      if (!targetDoc) {
         throw new Error(`Laboratory "${code}" not found.`);
       }
+
+      const currentData = targetDoc.data();
       const updatePayload: Record<string, any> = {
         updatedAt: serverTimestamp(),
       };
       if (updates.name !== undefined) {
-        updatePayload.name = clampStr(updates.name, 120, snap.data().name) || snap.data().name;
+        updatePayload.name = clampStr(updates.name, 120, currentData.name) || currentData.name;
       }
       if (updates.roomNumber !== undefined) {
-        updatePayload.roomNumber = clampStr(updates.roomNumber, 60, snap.data().roomNumber) || snap.data().roomNumber;
+        updatePayload.roomNumber = clampStr(updates.roomNumber, 60, currentData.roomNumber) || currentData.roomNumber;
       }
       if (updates.capacity !== undefined) {
         updatePayload.capacity = Math.max(1, Math.min(10000, Number(updates.capacity) || 30));
@@ -587,7 +614,7 @@ export const firestoreSync = {
         updatePayload.description = clampStr(updates.description, 500);
       }
 
-      await updateDoc(ref, updatePayload);
+      await updateDoc(targetDoc.ref, updatePayload);
     } catch (err: any) {
       if (err?.message?.includes('not found')) throw err;
       handleFirestoreError(err, OperationType.UPDATE, `laboratories/${upperCode}`);
@@ -607,10 +634,11 @@ export const firestoreSync = {
   }> {
     const upperCode = sanitizeLabCode(code);
     try {
-      const [assetsSnap, loansSnap, maintSnap] = await Promise.all([
+      const [assetsSnap, loansSnap, maintSnap, labsSnap] = await Promise.all([
         getDocs(buildScopedQuery(user, 'assets')),
         getDocs(buildScopedQuery(user, 'loans')),
         getDocs(buildScopedQuery(user, 'maintenance')),
+        getDocs(buildScopedQuery(user, 'laboratories')),
       ]);
 
       const assetCount = assetsSnap.docs.filter(
@@ -639,7 +667,15 @@ export const firestoreSync = {
         };
       }
 
-      await deleteDoc(doc(db, 'laboratories', upperCode));
+      const targetDoc =
+        labsSnap.docs.find(
+          (d) => (d.data().code || '').toUpperCase() === upperCode && d.data().ownerId === user.uid
+        ) ||
+        labsSnap.docs.find((d) => (d.data().code || '').toUpperCase() === upperCode);
+
+      if (targetDoc) {
+        await deleteDoc(targetDoc.ref);
+      }
       return {
         success: true,
         message: `Laboratory "${upperCode}" has been safely removed.`,

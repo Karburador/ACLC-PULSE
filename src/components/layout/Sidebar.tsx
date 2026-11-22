@@ -11,7 +11,8 @@ import {
   X,
   Menu,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  LogOut
 } from 'lucide-react';
 
 import { Laboratory } from '../../types';
@@ -34,6 +35,9 @@ interface SidebarProps {
   onCloseMobile?: () => void;
   laboratories?: Laboratory[];
   onOpenLabModal?: () => void;
+  userEmail?: string | null;
+  userDisplayName?: string | null;
+  onSignOut?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,6 +49,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   laboratories = [],
   onOpenLabModal,
+  userEmail,
+  userDisplayName,
+  onSignOut,
 }) => {
   const navItems: { id: NavigationTab; label: string; icon: React.ElementType; badge?: number; phaseTag: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, phaseTag: 'Overview' },
@@ -176,6 +183,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
       </div>
+
+      {userEmail && onSignOut && (
+        <div className="mx-3 mb-3 p-2.5 bg-slate-100 border border-slate-300 rounded-lg flex items-center justify-between gap-2 shrink-0">
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold text-slate-900 truncate">
+              {userDisplayName || userEmail.split('@')[0]}
+            </div>
+            <div className="text-[10px] text-slate-500 truncate">{userEmail}</div>
+          </div>
+          <button
+            onClick={onSignOut}
+            className="px-2.5 py-1.5 text-[11px] font-bold text-rose-800 bg-white hover:bg-rose-50 border border-rose-200 rounded-md cursor-pointer flex items-center gap-1 shrink-0"
+          >
+            <LogOut className="w-3 h-3" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      )}
     </>
   );
 

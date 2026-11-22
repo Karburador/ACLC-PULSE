@@ -2,9 +2,9 @@
 
 ## 1. Data Invariants
 1. **Verified Identity Gate**: Every read/write on operational collections (`laboratories`, `assets`, `loans`, `maintenance`, `system_meta`) requires `request.auth != null && request.auth.token.email_verified == true`.
-2. **Ownership & Campus Admin Access**:
-   - The bootstrapped campus administrator (`barracudaskynet@gmail.com` with `email_verified == true`) can read/write/delete all shared campus records across browsers and devices.
-   - Any other authenticated user can only list/get/write records where `ownerId == request.auth.uid`.
+2. **Ownership & Per-Custodian Isolation**:
+   - The bootstrapped campus administrator (`barracudaskynet@gmail.com` with `email_verified == true`) can read/write/delete campus records across browsers and devices.
+   - Each independent Lab Custodian (Email/Password verified account) can only list/get/write records where `ownerId == request.auth.uid`, with UID-scoped `laboratories/{uid}_{labCode}` and `system_meta/catalog_{uid}` document IDs preventing cross-custodian collisions.
    - `allow list` never uses `get()` or `exists()` and strictly evaluates `isBootstrappedAdmin() || resource.data.ownerId == request.auth.uid`.
 3. **Referential & Laboratory Deletion Integrity**:
    - Creating a `LoanRecord` requires `assetId` to reference an existing `/assets/{assetId}` document (`exists(...)`), and updating/deleting resources validates document IDs via `isValidId()`.

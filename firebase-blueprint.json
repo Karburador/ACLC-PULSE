@@ -362,9 +362,9 @@
     }
   },
   "firestore": {
-    "/laboratories/{labCode}": {
+    "/laboratories/{labDocId}": {
       "schema": { "$ref": "#/entities/Laboratory" },
-      "description": "Configured academic laboratories synced across browsers"
+      "description": "Configured academic laboratories isolated per custodian account (or campus admin) and synced across browsers"
     },
     "/assets/{assetId}": {
       "schema": { "$ref": "#/entities/Asset" },
@@ -380,7 +380,7 @@
     },
     "/system_meta/{metaId}": {
       "schema": { "$ref": "#/entities/SystemMeta" },
-      "description": "System initialization state preventing re-seeding after Reset to 0"
+      "description": "Per-custodian initialization state preventing re-seeding after Reset to 0"
     }
   }
 }

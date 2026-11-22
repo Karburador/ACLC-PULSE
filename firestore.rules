@@ -163,20 +163,23 @@ service cloud.firestore {
       allow get: if isValidId(docId) && docId == 'connection';
     }
 
-    // Laboratories Collection
-    match /laboratories/{labCode} {
-      allow get: if isValidLabCode(labCode) && isVerified() && isOwnerOrAdmin();
+    // Laboratories Collection (per-custodian UID-prefixed doc ID or legacy admin labCode)
+    match /laboratories/{labDocId} {
+      allow get: if isValidId(labDocId) && isVerified() && isOwnerOrAdmin();
       allow list: if isVerified() && isDocOwnerOrAdmin();
 
-      allow create: if isValidLabCode(labCode)
+      allow create: if isValidId(labDocId)
         && isVerified()
         && isValidLaboratory(incoming())
-        && incoming().code == labCode
+        && (
+          labDocId == request.auth.uid + '_' + incoming().code
+          || (isBootstrappedAdmin() && labDocId == incoming().code)
+        )
         && incoming().ownerId == request.auth.uid
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
-      allow update: if isValidLabCode(labCode)
+      allow update: if isValidId(labDocId)
         && isVerified()
         && isValidLaboratory(incoming())
         && isOwnerOrAdmin()
@@ -186,7 +189,7 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'roomNumber', 'capacity', 'description', 'updatedAt']);
 
-      allow delete: if isValidLabCode(labCode)
+      allow delete: if isValidId(labDocId)
         && isVerified()
         && isOwnerOrAdmin();
     }
@@ -285,22 +288,28 @@ service cloud.firestore {
         && isOwnerOrAdmin();
     }
 
-    // System Meta Collection (tracks catalog initialization & Reset-to-0 state)
+    // System Meta Collection (tracks per-custodian catalog initialization & Reset-to-0 state)
     match /system_meta/{metaId} {
       allow get: if isValidId(metaId) && isVerified() && isOwnerOrAdmin();
       allow list: if isVerified() && isDocOwnerOrAdmin();
 
       allow create: if isValidId(metaId)
-        && metaId == 'catalog'
         && isVerified()
+        && (
+          metaId == 'catalog_' + request.auth.uid
+          || (isBootstrappedAdmin() && metaId == 'catalog')
+        )
         && isValidSystemMeta(incoming())
         && incoming().ownerId == request.auth.uid
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
       allow update: if isValidId(metaId)
-        && metaId == 'catalog'
         && isVerified()
+        && (
+          metaId == 'catalog_' + request.auth.uid
+          || (isBootstrappedAdmin() && metaId == 'catalog')
+        )
         && isValidSystemMeta(incoming())
         && isOwnerOrAdmin()
         && incoming().ownerId == existing().ownerId

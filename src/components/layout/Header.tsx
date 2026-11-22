@@ -10,6 +10,7 @@ import {
   ChevronDown,
   RotateCcw,
   SlidersHorizontal,
+  LogOut,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -24,6 +25,7 @@ interface HeaderProps {
   onOpenLabModal?: () => void;
   onOpenResetModal?: () => void;
   userEmail?: string | null;
+  userDisplayName?: string | null;
   onSignOut?: () => void;
 }
 
@@ -39,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLabModal,
   onOpenResetModal,
   userEmail,
+  userDisplayName,
   onSignOut,
 }) => {
   const totalUnits = laboratories.reduce((sum, l) => sum + (l.activeUnitsCount || 0), 0);
@@ -157,10 +160,11 @@ export const Header: React.FC<HeaderProps> = ({
         {userEmail && onSignOut && (
           <button
             onClick={onSignOut}
-            title={`Signed in as ${userEmail} — Click to sign out`}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer max-w-[150px]"
+            title={`Signed in as ${userDisplayName || userEmail} (${userEmail}) — Click to sign out`}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-bold text-slate-700 hover:text-rose-900 bg-slate-100 hover:bg-rose-50 border border-slate-300 hover:border-rose-300 rounded-lg transition-colors cursor-pointer max-w-[170px]"
           >
-            <span className="truncate">{userEmail.split('@')[0]}</span>
+            <span className="truncate">{userDisplayName || userEmail.split('@')[0]}</span>
+            <LogOut className="w-3.5 h-3.5 shrink-0" />
           </button>
         )}
       </div>
