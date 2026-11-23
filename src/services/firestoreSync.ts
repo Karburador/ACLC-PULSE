@@ -5,20 +5,24 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
-  query,
   serverTimestamp,
-  setDoc,
-  updateDoc,
-  deleteDoc,
   deleteField,
-  where,
   writeBatch,
   Unsubscribe,
   Query,
   DocumentData,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { Asset, Laboratory, LoanRecord, MaintenanceTask } from '../types';
+import {
+  Asset,
+  AuditAction,
+  AuditLogEntry,
+  AuthorizedCustodian,
+  CustodianRole,
+  Laboratory,
+  LoanRecord,
+  MaintenanceTask,
+} from '../types';
 import {
   INITIAL_ASSETS,
   INITIAL_LOANS,
@@ -26,6 +30,7 @@ import {
 } from '../data/initialCatalog';
 
 export const CAMPUS_ADMIN_EMAIL = 'barracudaskynet@gmail.com';
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 export const DEFAULT_LABORATORIES: Laboratory[] = [
   {
@@ -84,11 +89,15 @@ export const DEFAULT_LABORATORIES: Laboratory[] = [
   },
 ];
 
+export function normalizeEmail(email?: string | null): string {
+  return (email || '').trim().toLowerCase();
+}
+
 export function isCampusAdmin(user: User | null): boolean {
   return Boolean(
     user &&
       user.emailVerified &&
-      user.email?.toLowerCase() === CAMPUS_ADMIN_EMAIL.toLowerCase()
+      normalizeEmail(user.email) === CAMPUS_ADMIN_EMAIL.toLowerCase()
   );
 }
 
@@ -114,28 +123,64 @@ function clampStr(raw: unknown, maxLen: number, fallback = ''): string {
   return raw.trim().slice(0, maxLen);
 }
 
-function getMetaDocId(user: User): string {
-  return isCampusAdmin(user) ? 'catalog' : `catalog_${user.uid}`;
+function getMetaDocId(_user: User): string {
+  return 'catalog';
 }
 
-function getLabDocId(user: User, code: string): string {
-  const upper = sanitizeLabCode(code);
-  return isCampusAdmin(user) ? upper : `${user.uid}_${upper}`;
+function getLabDocId(_user: User, code: string): string {
+  return sanitizeLabCode(code);
 }
 
-function getItemPrefix(user: User): string {
-  return isCampusAdmin(user) ? '' : `${user.uid.slice(0, 10)}_`;
+function getItemPrefix(_user: User): string {
+  return '';
 }
 
-function buildScopedQuery(user: User, colName: string): Query<DocumentData> {
-  const colRef = collection(db, colName);
-  return query(colRef, where('ownerId', '==', user.uid));
+function buildScopedQuery(_user: User, colName: string): Query<DocumentData> {
+  return collection(db, colName);
+}
+
+function buildAuditBatchOp(
+  user: User,
+  params: {
+    action: AuditAction;
+    targetType: AuditLogEntry['targetType'];
+    targetId: string;
+    targetLabel: string;
+    details: string;
+    lab?: string;
+  }
+): (batch: ReturnType<typeof writeBatch>) => void {
+  const id = sanitizeId('', 'audit');
+  const actorEmail = normalizeEmail(user.email);
+  const actorName =
+    clampStr(user.displayName || actorEmail.split('@')[0] || 'Custodian', 120) || 'Custodian';
+
+  const payload: Record<string, any> = {
+    id,
+    action: params.action,
+    targetType: params.targetType,
+    targetId: clampStr(params.targetId, 128, 'system') || 'system',
+    targetLabel: clampStr(params.targetLabel, 200, 'System Record') || 'System Record',
+    details: clampStr(params.details, 500, 'Operation logged') || 'Operation logged',
+    actorUid: user.uid,
+    actorEmail,
+    actorName,
+    createdAt: serverTimestamp(),
+  };
+
+  const cleanLab = params.lab ? sanitizeLabCode(params.lab) : '';
+  if (cleanLab) {
+    payload.lab = cleanLab;
+  }
+
+  return (batch) => batch.set(doc(db, 'audit_logs', id), payload);
 }
 
 function buildAssetPayload(
   data: Partial<Asset>,
   id: string,
   ownerId: string,
+  actorEmail: string,
   isCreate: boolean
 ) {
   const qty = Math.max(0, Math.min(100000, Number(data.quantity) || 0));
@@ -165,10 +210,12 @@ function buildAssetPayload(
     unit: clampStr(data.unit, 40, 'units') || 'units',
     storageLocation,
     ownerId,
+    lastUpdatedByEmail: actorEmail,
     updatedAt: serverTimestamp(),
   };
 
   if (isCreate) {
+    payload.createdByEmail = actorEmail;
     payload.createdAt = serverTimestamp();
   }
 
@@ -218,10 +265,76 @@ async function commitBatchedOperations(
 
 export const firestoreSync = {
   /**
+   * Verify user's Google email against the Admin-managed authorized_custodians allowlist.
+   * Bootstrapped Head Admin (barracudaskynet@gmail.com) is always authorized and auto-registered.
+   */
+  async checkCustodianAccess(user: User): Promise<{
+    authorized: boolean;
+    role: CustodianRole | null;
+    inactive: boolean;
+    record: AuthorizedCustodian | null;
+  }> {
+    if (!user.emailVerified || !user.email) {
+      return { authorized: false, role: null, inactive: false, record: null };
+    }
+
+    const emailKey = normalizeEmail(user.email);
+    const ref = doc(db, 'authorized_custodians', emailKey);
+
+    try {
+      const snap = await getDoc(ref);
+
+      if (isCampusAdmin(user)) {
+        if (!snap.exists()) {
+          const batch = writeBatch(db);
+          batch.set(ref, {
+            email: emailKey,
+            displayName:
+              clampStr(user.displayName || 'Head Campus Admin', 120) || 'Head Campus Admin',
+            role: 'Admin',
+            active: true,
+            notes: 'Bootstrapped Campus Head Administrator',
+            addedByEmail: emailKey,
+            ownerId: user.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          await batch.commit();
+        }
+        const existingData = snap.exists() ? (snap.data() as AuthorizedCustodian) : null;
+        return {
+          authorized: true,
+          role: 'Admin',
+          inactive: false,
+          record: existingData,
+        };
+      }
+
+      if (!snap.exists()) {
+        return { authorized: false, role: null, inactive: false, record: null };
+      }
+
+      const record = snap.data() as AuthorizedCustodian;
+      if (record.active !== true) {
+        return { authorized: false, role: null, inactive: true, record };
+      }
+
+      return {
+        authorized: true,
+        role: record.role === 'Admin' ? 'Admin' : 'Custodian',
+        inactive: false,
+        record,
+      };
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, `authorized_custodians/${emailKey}`);
+    }
+  },
+
+  /**
    * Ensure first-time campus cloud database is initialized once.
    * Respects system_meta/catalog.mode === 'zero' so Reset to 0 NEVER re-seeds across browsers.
    */
-  async ensureInitialized(user: User): Promise<void> {
+  async ensureInitialized(user: User, role: CustodianRole): Promise<void> {
     if (!user.emailVerified) {
       return;
     }
@@ -239,7 +352,11 @@ export const firestoreSync = {
       return;
     }
 
-    // Check if labs/assets were already populated
+    // Only Admins can initialize or seed the shared campus catalog
+    if (role !== 'Admin') {
+      return;
+    }
+
     let existingLabs;
     try {
       existingLabs = await getDocs(buildScopedQuery(user, 'laboratories'));
@@ -247,15 +364,19 @@ export const firestoreSync = {
       handleFirestoreError(err, OperationType.LIST, 'laboratories');
     }
 
+    const actorEmail = normalizeEmail(user.email);
     if (!existingLabs.empty) {
       try {
-        await setDoc(metaRef, {
+        const batch = writeBatch(db);
+        batch.set(metaRef, {
           initialized: true,
           mode: 'default',
           ownerId: user.uid,
+          lastUpdatedByEmail: actorEmail,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        await batch.commit();
       } catch (err) {
         handleFirestoreError(err, OperationType.CREATE, `system_meta/${metaDocId}`);
       }
@@ -270,6 +391,7 @@ export const firestoreSync = {
       const ops: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
       const prefix = getItemPrefix(user);
       const metaDocId = getMetaDocId(user);
+      const actorEmail = normalizeEmail(user.email);
 
       if (wipeExisting) {
         const [assetsSnap, loansSnap, maintSnap, labsSnap] = await Promise.all([
@@ -279,10 +401,14 @@ export const firestoreSync = {
           getDocs(buildScopedQuery(user, 'laboratories')),
         ]);
 
-        assetsSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
-        loansSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
-        maintSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
-        labsSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
+        const deleteOps: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
+        assetsSnap.docs.forEach((d) => deleteOps.push((b) => b.delete(d.ref)));
+        loansSnap.docs.forEach((d) => deleteOps.push((b) => b.delete(d.ref)));
+        maintSnap.docs.forEach((d) => deleteOps.push((b) => b.delete(d.ref)));
+        labsSnap.docs.forEach((d) => deleteOps.push((b) => b.delete(d.ref)));
+        if (deleteOps.length > 0) {
+          await commitBatchedOperations(deleteOps);
+        }
       }
 
       for (const lab of DEFAULT_LABORATORIES) {
@@ -296,6 +422,8 @@ export const firestoreSync = {
             description: clampStr(lab.description || '', 500),
             isCustom: Boolean(lab.isCustom),
             ownerId: user.uid,
+            createdByEmail: actorEmail,
+            lastUpdatedByEmail: actorEmail,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           })
@@ -307,12 +435,13 @@ export const firestoreSync = {
         const id = sanitizeId(`${prefix}${asset.id}`, 'asset');
         assetIdMap.set(asset.id, id);
         const ref = doc(db, 'assets', id);
-        ops.push((b) => b.set(ref, buildAssetPayload(asset, id, user.uid, true)));
+        ops.push((b) => b.set(ref, buildAssetPayload(asset, id, user.uid, actorEmail, true)));
       }
 
       for (const loan of INITIAL_LOANS) {
         const id = sanitizeId(`${prefix}${loan.id}`, 'loan');
-        const mappedAssetId = assetIdMap.get(loan.assetId) || sanitizeId(`${prefix}${loan.assetId}`, 'asset');
+        const mappedAssetId =
+          assetIdMap.get(loan.assetId) || sanitizeId(`${prefix}${loan.assetId}`, 'asset');
         const ref = doc(db, 'loans', id);
         ops.push((b) =>
           b.set(ref, {
@@ -332,6 +461,8 @@ export const firestoreSync = {
             purpose: clampStr(loan.purpose, 400),
             issuedBy: clampStr(loan.issuedBy, 120),
             ownerId: user.uid,
+            createdByEmail: actorEmail,
+            lastUpdatedByEmail: actorEmail,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           })
@@ -353,11 +484,14 @@ export const firestoreSync = {
           description: clampStr(task.description, 800),
           costEstimate: Number(task.costEstimate) || 0,
           ownerId: user.uid,
+          createdByEmail: actorEmail,
+          lastUpdatedByEmail: actorEmail,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
         if (task.assetId) {
-          taskPayload.assetId = assetIdMap.get(task.assetId) || sanitizeId(`${prefix}${task.assetId}`, 'asset');
+          taskPayload.assetId =
+            assetIdMap.get(task.assetId) || sanitizeId(`${prefix}${task.assetId}`, 'asset');
         }
         if (task.assetTag) taskPayload.assetTag = clampStr(task.assetTag, 64);
         if (task.diagnosis) taskPayload.diagnosis = clampStr(task.diagnosis, 600);
@@ -367,13 +501,38 @@ export const firestoreSync = {
       }
 
       const metaRef = doc(db, 'system_meta', metaDocId);
-      ops.push((b) =>
-        b.set(metaRef, {
-          initialized: true,
-          mode: 'default',
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+      const metaSnap = await getDoc(metaRef);
+      if (metaSnap.exists()) {
+        ops.push((b) =>
+          b.update(metaRef, {
+            initialized: true,
+            mode: 'default',
+            lastUpdatedByEmail: actorEmail,
+            updatedAt: serverTimestamp(),
+          })
+        );
+      } else {
+        ops.push((b) =>
+          b.set(metaRef, {
+            initialized: true,
+            mode: 'default',
+            ownerId: user.uid,
+            lastUpdatedByEmail: actorEmail,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+      }
+
+      ops.push(
+        buildAuditBatchOp(user, {
+          action: 'CATALOG_RESTORE_DEFAULT',
+          targetType: 'system',
+          targetId: 'catalog',
+          targetLabel: 'ACLC Default Campus Catalog (160 Units)',
+          details: wipeExisting
+            ? 'Wiped workspace and restored 6 default labs with 160 core equipment units.'
+            : 'Initialized default campus catalog for first-time setup.',
         })
       );
 
@@ -385,6 +544,7 @@ export const firestoreSync = {
 
   async wipeAllToZero(user: User): Promise<void> {
     try {
+      const actorEmail = normalizeEmail(user.email);
       const [assetsSnap, loansSnap, maintSnap] = await Promise.all([
         getDocs(buildScopedQuery(user, 'assets')),
         getDocs(buildScopedQuery(user, 'loans')),
@@ -404,6 +564,7 @@ export const firestoreSync = {
           b.update(metaRef, {
             initialized: true,
             mode: 'zero',
+            lastUpdatedByEmail: actorEmail,
             updatedAt: serverTimestamp(),
           })
         );
@@ -413,11 +574,22 @@ export const firestoreSync = {
             initialized: true,
             mode: 'zero',
             ownerId: user.uid,
+            lastUpdatedByEmail: actorEmail,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           })
         );
       }
+
+      ops.push(
+        buildAuditBatchOp(user, {
+          action: 'CATALOG_WIPE_ZERO',
+          targetType: 'system',
+          targetId: 'catalog',
+          targetLabel: 'System Reset to 0',
+          details: `Purged ${assetsSnap.size} assets, ${loansSnap.size} loans, and ${maintSnap.size} maintenance tickets.`,
+        })
+      );
 
       await commitBatchedOperations(ops);
     } catch (err) {
@@ -449,6 +621,8 @@ export const firestoreSync = {
             capacity: Number(data.capacity) || 30,
             description: data.description || '',
             isCustom: Boolean(data.isCustom),
+            createdByEmail: data.createdByEmail,
+            lastUpdatedByEmail: data.lastUpdatedByEmail,
           } as Laboratory;
         });
         list.sort((a, b) => a.code.localeCompare(b.code));
@@ -542,6 +716,193 @@ export const firestoreSync = {
     };
   },
 
+  subscribeToSecurityData(
+    role: CustodianRole,
+    callbacks: {
+      onCustodians?: (list: AuthorizedCustodian[]) => void;
+      onAuditLogs: (logs: AuditLogEntry[]) => void;
+      onError: (err: Error) => void;
+    }
+  ): Unsubscribe {
+    const unsubs: Unsubscribe[] = [];
+
+    const unsubLogs = onSnapshot(
+      collection(db, 'audit_logs'),
+      (snap) => {
+        const logs = snap.docs.map((d) => {
+          const data = d.data() as AuditLogEntry;
+          return { ...data, id: data.id || d.id };
+        });
+        logs.sort((a, b) => {
+          const tA = a.createdAt?.toMillis?.() ?? 0;
+          const tB = b.createdAt?.toMillis?.() ?? 0;
+          return tB - tA;
+        });
+        callbacks.onAuditLogs(logs.slice(0, 200));
+      },
+      (err) => {
+        try {
+          handleFirestoreError(err, OperationType.LIST, 'audit_logs');
+        } catch (wrapped: any) {
+          callbacks.onError(wrapped);
+        }
+      }
+    );
+    unsubs.push(unsubLogs);
+
+    if (role === 'Admin' && callbacks.onCustodians) {
+      const unsubCustodians = onSnapshot(
+        collection(db, 'authorized_custodians'),
+        (snap) => {
+          const list = snap.docs.map((d) => {
+            const data = d.data() as AuthorizedCustodian;
+            return { ...data, email: data.email || d.id };
+          });
+          list.sort((a, b) => {
+            if (a.email === CAMPUS_ADMIN_EMAIL) return -1;
+            if (b.email === CAMPUS_ADMIN_EMAIL) return 1;
+            if (a.role !== b.role) return a.role === 'Admin' ? -1 : 1;
+            return a.email.localeCompare(b.email);
+          });
+          callbacks.onCustodians?.(list);
+        },
+        (err) => {
+          try {
+            handleFirestoreError(err, OperationType.LIST, 'authorized_custodians');
+          } catch (wrapped: any) {
+            callbacks.onError(wrapped);
+          }
+        }
+      );
+      unsubs.push(unsubCustodians);
+    }
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  },
+
+  // CUSTODIAN ROSTER MANAGEMENT (Admin Only)
+  async addAuthorizedCustodian(
+    user: User,
+    input: { email: string; displayName: string; role: CustodianRole; notes?: string }
+  ) {
+    const emailKey = normalizeEmail(input.email);
+    if (!EMAIL_REGEX.test(emailKey) || emailKey.length > 128) {
+      throw new Error('Please enter a valid Gmail or Google Workspace email address.');
+    }
+
+    const ref = doc(db, 'authorized_custodians', emailKey);
+    try {
+      const existingSnap = await getDoc(ref);
+      if (existingSnap.exists()) {
+        throw new Error(`Account "${emailKey}" is already registered in the Custodian Roster.`);
+      }
+
+      const actorEmail = normalizeEmail(user.email);
+      const batch = writeBatch(db);
+      const payload: Record<string, any> = {
+        email: emailKey,
+        displayName: clampStr(input.displayName, 120, emailKey.split('@')[0]) || emailKey.split('@')[0],
+        role: input.role === 'Admin' ? 'Admin' : 'Custodian',
+        active: true,
+        addedByEmail: actorEmail,
+        ownerId: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const cleanNotes = clampStr(input.notes, 300);
+      if (cleanNotes) payload.notes = cleanNotes;
+
+      batch.set(ref, payload);
+      buildAuditBatchOp(user, {
+        action: 'CUSTODIAN_ADD',
+        targetType: 'custodian',
+        targetId: emailKey,
+        targetLabel: `${payload.displayName} (${emailKey})`,
+        details: `Authorized ${emailKey} with role "${payload.role}".`,
+      })(batch);
+
+      await batch.commit();
+    } catch (err: any) {
+      if (err?.message?.includes('already registered')) throw err;
+      handleFirestoreError(err, OperationType.CREATE, `authorized_custodians/${emailKey}`);
+    }
+  },
+
+  async updateAuthorizedCustodian(
+    user: User,
+    emailKeyRaw: string,
+    updates: { displayName?: string; role?: CustodianRole; active?: boolean; notes?: string }
+  ) {
+    const emailKey = normalizeEmail(emailKeyRaw);
+    if (emailKey === CAMPUS_ADMIN_EMAIL.toLowerCase() && (updates.role === 'Custodian' || updates.active === false)) {
+      throw new Error('Head Campus Administrator cannot be demoted or suspended.');
+    }
+
+    const ref = doc(db, 'authorized_custodians', emailKey);
+    try {
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        throw new Error(`Custodian "${emailKey}" not found.`);
+      }
+
+      const batch = writeBatch(db);
+      const updatePayload: Record<string, any> = {
+        updatedAt: serverTimestamp(),
+      };
+      if (updates.displayName !== undefined) {
+        updatePayload.displayName = clampStr(updates.displayName, 120, snap.data().displayName) || snap.data().displayName;
+      }
+      if (updates.role !== undefined) {
+        updatePayload.role = updates.role === 'Admin' ? 'Admin' : 'Custodian';
+      }
+      if (updates.active !== undefined) {
+        updatePayload.active = Boolean(updates.active);
+      }
+      if (updates.notes !== undefined) {
+        updatePayload.notes = clampStr(updates.notes, 300);
+      }
+
+      batch.update(ref, updatePayload);
+      buildAuditBatchOp(user, {
+        action: 'CUSTODIAN_UPDATE',
+        targetType: 'custodian',
+        targetId: emailKey,
+        targetLabel: `${updatePayload.displayName || snap.data().displayName} (${emailKey})`,
+        details: `Updated access: role=${updatePayload.role || snap.data().role}, active=${updatePayload.active !== undefined ? updatePayload.active : snap.data().active}.`,
+      })(batch);
+
+      await batch.commit();
+    } catch (err: any) {
+      if (err?.message?.includes('not found') || err?.message?.includes('Head Campus Administrator')) throw err;
+      handleFirestoreError(err, OperationType.UPDATE, `authorized_custodians/${emailKey}`);
+    }
+  },
+
+  async removeAuthorizedCustodian(user: User, emailKeyRaw: string) {
+    const emailKey = normalizeEmail(emailKeyRaw);
+    if (emailKey === CAMPUS_ADMIN_EMAIL.toLowerCase()) {
+      throw new Error('Head Campus Administrator cannot be removed from the roster.');
+    }
+
+    const ref = doc(db, 'authorized_custodians', emailKey);
+    try {
+      const batch = writeBatch(db);
+      batch.delete(ref);
+      buildAuditBatchOp(user, {
+        action: 'CUSTODIAN_REMOVE',
+        targetType: 'custodian',
+        targetId: emailKey,
+        targetLabel: emailKey,
+        details: `Revoked and removed campus database access for ${emailKey}.`,
+      })(batch);
+      await batch.commit();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `authorized_custodians/${emailKey}`);
+    }
+  },
+
   // LABORATORIES
   async createLaboratory(
     user: User,
@@ -552,12 +913,12 @@ export const firestoreSync = {
 
     const docId = getLabDocId(user, code);
     const ref = doc(db, 'laboratories', docId);
+    const actorEmail = normalizeEmail(user.email);
+
     try {
       const scopedLabsSnap = await getDocs(buildScopedQuery(user, 'laboratories'));
       const duplicate = scopedLabsSnap.docs.find(
-        (d) =>
-          (d.data().code || '').toUpperCase() === code &&
-          (d.data().ownerId === user.uid || isCampusAdmin(user))
+        (d) => (d.data().code || '').toUpperCase() === code
       );
       if (duplicate) {
         throw new Error(`Laboratory code "${code}" already exists.`);
@@ -570,13 +931,26 @@ export const firestoreSync = {
         capacity: Math.max(1, Math.min(10000, Number(data.capacity) || 30)),
         isCustom: true,
         ownerId: user.uid,
+        createdByEmail: actorEmail,
+        lastUpdatedByEmail: actorEmail,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
       const desc = clampStr(data.description, 500);
       if (desc) payload.description = desc;
 
-      await setDoc(ref, payload);
+      const batch = writeBatch(db);
+      batch.set(ref, payload);
+      buildAuditBatchOp(user, {
+        action: 'LAB_CREATE',
+        targetType: 'laboratory',
+        targetId: code,
+        targetLabel: `${code} · ${payload.name}`,
+        details: `Created laboratory (${payload.roomNumber}, capacity ${payload.capacity} units).`,
+        lab: code,
+      })(batch);
+
+      await batch.commit();
     } catch (err: any) {
       if (err?.message?.includes('already exists')) throw err;
       handleFirestoreError(err, OperationType.CREATE, `laboratories/${docId}`);
@@ -585,6 +959,8 @@ export const firestoreSync = {
 
   async updateLaboratory(user: User, code: string, updates: Partial<Laboratory>) {
     const upperCode = sanitizeLabCode(code);
+    const actorEmail = normalizeEmail(user.email);
+
     try {
       const scopedLabsSnap = await getDocs(buildScopedQuery(user, 'laboratories'));
       const targetDoc =
@@ -599,6 +975,7 @@ export const firestoreSync = {
 
       const currentData = targetDoc.data();
       const updatePayload: Record<string, any> = {
+        lastUpdatedByEmail: actorEmail,
         updatedAt: serverTimestamp(),
       };
       if (updates.name !== undefined) {
@@ -614,7 +991,18 @@ export const firestoreSync = {
         updatePayload.description = clampStr(updates.description, 500);
       }
 
-      await updateDoc(targetDoc.ref, updatePayload);
+      const batch = writeBatch(db);
+      batch.update(targetDoc.ref, updatePayload);
+      buildAuditBatchOp(user, {
+        action: 'LAB_UPDATE',
+        targetType: 'laboratory',
+        targetId: upperCode,
+        targetLabel: `${upperCode} · ${updatePayload.name || currentData.name}`,
+        details: `Updated laboratory settings (capacity: ${updatePayload.capacity ?? currentData.capacity} units).`,
+        lab: upperCode,
+      })(batch);
+
+      await batch.commit();
     } catch (err: any) {
       if (err?.message?.includes('not found')) throw err;
       handleFirestoreError(err, OperationType.UPDATE, `laboratories/${upperCode}`);
@@ -674,7 +1062,17 @@ export const firestoreSync = {
         labsSnap.docs.find((d) => (d.data().code || '').toUpperCase() === upperCode);
 
       if (targetDoc) {
-        await deleteDoc(targetDoc.ref);
+        const batch = writeBatch(db);
+        batch.delete(targetDoc.ref);
+        buildAuditBatchOp(user, {
+          action: 'LAB_DELETE',
+          targetType: 'laboratory',
+          targetId: upperCode,
+          targetLabel: `${upperCode} · ${targetDoc.data().name || upperCode}`,
+          details: `Deleted empty laboratory ${upperCode}.`,
+          lab: upperCode,
+        })(batch);
+        await batch.commit();
       }
       return {
         success: true,
@@ -688,46 +1086,88 @@ export const firestoreSync = {
   // ASSETS
   async createAsset(user: User, data: Partial<Asset>) {
     const id = sanitizeId('', 'asset');
-    const payload = buildAssetPayload(data, id, user.uid, true);
+    const actorEmail = normalizeEmail(user.email);
+    const payload = buildAssetPayload(data, id, user.uid, actorEmail, true);
     try {
-      await setDoc(doc(db, 'assets', id), payload);
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'assets', id), payload);
+      buildAuditBatchOp(user, {
+        action: 'ASSET_CREATE',
+        targetType: 'asset',
+        targetId: id,
+        targetLabel: `${payload.assetTag} · ${payload.name}`,
+        details: `Registered ${payload.quantity} ${payload.unit} in ${payload.lab} (${payload.category}).`,
+        lab: payload.lab,
+      })(batch);
+      await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `assets/${id}`);
     }
   },
 
-  async updateAsset(id: string, updates: Partial<Asset>) {
+  async updateAsset(user: User, id: string, updates: Partial<Asset>) {
     const docId = sanitizeId(id, 'asset');
     const ref = doc(db, 'assets', docId);
+    const actorEmail = normalizeEmail(user.email);
+
     try {
       const snap = await getDoc(ref);
       if (!snap.exists()) {
         throw new Error(`Asset "${id}" not found.`);
       }
-      const current = snap.data() as Asset & { ownerId: string; createdAt: any };
+      const current = snap.data() as Asset & { ownerId: string; createdAt: any; createdByEmail?: string };
       const merged: Partial<Asset> = {
         ...current,
         ...updates,
         storageLocation: updates.storageLocation || current.storageLocation,
         monitorInfo: updates.monitorInfo !== undefined ? updates.monitorInfo : current.monitorInfo,
       };
-      const payload = buildAssetPayload(merged, docId, current.ownerId, false);
+      const payload = buildAssetPayload(merged, docId, current.ownerId, actorEmail, false);
       if (current.monitorInfo && !payload.monitorInfo) {
         payload.monitorInfo = deleteField();
       }
       delete payload.id;
       delete payload.ownerId;
-      await updateDoc(ref, payload);
+      delete payload.createdByEmail;
+
+      const batch = writeBatch(db);
+      batch.update(ref, payload);
+      buildAuditBatchOp(user, {
+        action: 'ASSET_UPDATE',
+        targetType: 'asset',
+        targetId: docId,
+        targetLabel: `${payload.assetTag} · ${payload.name}`,
+        details: `Updated asset (status: ${payload.status}, stock: ${payload.availableQuantity}/${payload.quantity} ${payload.unit}).`,
+        lab: payload.lab,
+      })(batch);
+      await batch.commit();
     } catch (err: any) {
       if (err?.message?.includes('not found')) throw err;
       handleFirestoreError(err, OperationType.UPDATE, `assets/${docId}`);
     }
   },
 
-  async deleteAsset(id: string) {
+  async deleteAsset(user: User, id: string) {
     const docId = sanitizeId(id, 'asset');
+    const ref = doc(db, 'assets', docId);
     try {
-      await deleteDoc(doc(db, 'assets', docId));
+      const snap = await getDoc(ref);
+      const label = snap.exists()
+        ? `${snap.data().assetTag || docId} · ${snap.data().name || 'Asset'}`
+        : docId;
+      const lab = snap.exists() ? snap.data().lab : undefined;
+
+      const batch = writeBatch(db);
+      batch.delete(ref);
+      buildAuditBatchOp(user, {
+        action: 'ASSET_DELETE',
+        targetType: 'asset',
+        targetId: docId,
+        targetLabel: label,
+        details: `Permanently removed asset ${label} from inventory.`,
+        lab,
+      })(batch);
+      await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `assets/${docId}`);
     }
@@ -742,8 +1182,14 @@ export const firestoreSync = {
     }
 
     const qty = Math.max(1, Math.min(10000, Number(data.quantity) || 1));
-    const newAvail = Math.max(0, (asset.availableQuantity || 0) - qty);
+    const currentAvail = asset.availableQuantity || 0;
+    if (qty > currentAvail) {
+      throw new Error(`Insufficient stock: only ${currentAvail} ${asset.unit} available for ${asset.assetTag}.`);
+    }
+
+    const newAvail = currentAvail - qty;
     const newStatus = newAvail === 0 ? 'In Use' : asset.status;
+    const actorEmail = normalizeEmail(user.email);
 
     try {
       const batch = writeBatch(db);
@@ -751,15 +1197,19 @@ export const firestoreSync = {
       batch.update(assetRef, {
         availableQuantity: newAvail,
         status: newStatus,
+        lastUpdatedByEmail: actorEmail,
         updatedAt: serverTimestamp(),
       });
+
+      const borrowerName = clampStr(data.borrowerName, 120, 'Borrower') || 'Borrower';
+      const borrowerRole = data.borrowerRole || 'Student';
 
       const loanRef = doc(db, 'loans', id);
       batch.set(loanRef, {
         id,
-        borrowerName: clampStr(data.borrowerName, 120, 'Borrower') || 'Borrower',
+        borrowerName,
         borrowerIdNumber: clampStr(data.borrowerIdNumber, 64, 'ID-PENDING') || 'ID-PENDING',
-        borrowerRole: data.borrowerRole || 'Student',
+        borrowerRole,
         departmentSection: clampStr(data.departmentSection, 80, 'General') || 'General',
         assetId: asset.id,
         assetTag: clampStr(asset.assetTag, 64),
@@ -773,9 +1223,20 @@ export const firestoreSync = {
         purpose: clampStr(data.purpose, 400, 'Laboratory Practical Coursework') || 'Laboratory Practical Coursework',
         issuedBy: clampStr(data.issuedBy, 120, 'Lab Custodian') || 'Lab Custodian',
         ownerId: user.uid,
+        createdByEmail: actorEmail,
+        lastUpdatedByEmail: actorEmail,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      buildAuditBatchOp(user, {
+        action: 'LOAN_ISSUE',
+        targetType: 'loan',
+        targetId: id,
+        targetLabel: `${asset.assetTag} → ${borrowerName}`,
+        details: `Issued ${qty} ${asset.unit} to ${borrowerName} (${borrowerRole}). Remaining stock: ${newAvail}/${asset.quantity}.`,
+        lab: asset.lab,
+      })(batch);
 
       await batch.commit();
     } catch (err) {
@@ -783,7 +1244,13 @@ export const firestoreSync = {
     }
   },
 
-  async returnLoan(id: string, notes: string | undefined, allLoans: LoanRecord[], allAssets: Asset[]) {
+  async returnLoan(
+    user: User,
+    id: string,
+    notes: string | undefined,
+    allLoans: LoanRecord[],
+    allAssets: Asset[]
+  ) {
     const docId = sanitizeId(id, 'loan');
     const loan = allLoans.find((l) => l.id === docId);
     if (!loan) {
@@ -791,6 +1258,7 @@ export const firestoreSync = {
     }
 
     const today = new Date().toISOString().split('T')[0];
+    const actorEmail = normalizeEmail(user.email);
 
     try {
       const batch = writeBatch(db);
@@ -798,6 +1266,7 @@ export const firestoreSync = {
       const loanUpdate: Record<string, any> = {
         status: 'Returned',
         dateReturned: today,
+        lastUpdatedByEmail: actorEmail,
         updatedAt: serverTimestamp(),
       };
       const cleanNotes = clampStr(notes, 400);
@@ -807,6 +1276,7 @@ export const firestoreSync = {
       batch.update(loanRef, loanUpdate);
 
       const asset = allAssets.find((a) => a.id === loan.assetId);
+      let restoredDetail = '';
       if (asset) {
         const restoredQty = Math.min(
           asset.quantity,
@@ -815,9 +1285,20 @@ export const firestoreSync = {
         batch.update(doc(db, 'assets', asset.id), {
           availableQuantity: restoredQty,
           status: 'Available',
+          lastUpdatedByEmail: actorEmail,
           updatedAt: serverTimestamp(),
         });
+        restoredDetail = ` Restored stock to ${restoredQty}/${asset.quantity}.`;
       }
+
+      buildAuditBatchOp(user, {
+        action: 'LOAN_RETURN',
+        targetType: 'loan',
+        targetId: docId,
+        targetLabel: `${loan.assetTag} ← ${loan.borrowerName}`,
+        details: `Returned ${loan.quantity} unit(s) from ${loan.borrowerName}.${restoredDetail}${cleanNotes ? ` Note: ${cleanNotes}` : ''}`,
+        lab: loan.lab,
+      })(batch);
 
       await batch.commit();
     } catch (err) {
@@ -828,6 +1309,8 @@ export const firestoreSync = {
   // MAINTENANCE
   async createMaintenanceTask(user: User, data: Partial<MaintenanceTask>) {
     const id = sanitizeId('', 'maint');
+    const actorEmail = normalizeEmail(user.email);
+
     try {
       const batch = writeBatch(db);
       const payload: Record<string, any> = {
@@ -847,6 +1330,8 @@ export const firestoreSync = {
           'Facility check',
         costEstimate: Math.max(0, Number(data.costEstimate) || 0),
         ownerId: user.uid,
+        createdByEmail: actorEmail,
+        lastUpdatedByEmail: actorEmail,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -860,6 +1345,7 @@ export const firestoreSync = {
         if (assetSnap.exists()) {
           batch.update(doc(db, 'assets', payload.assetId), {
             status: payload.column === 'Replaced/Retired' ? 'Archived' : 'Under Maintenance',
+            lastUpdatedByEmail: actorEmail,
             updatedAt: serverTimestamp(),
           });
         }
@@ -868,19 +1354,35 @@ export const firestoreSync = {
       if (diagnosis) payload.diagnosis = diagnosis;
 
       batch.set(doc(db, 'maintenance', id), payload);
+      buildAuditBatchOp(user, {
+        action: 'MAINT_CREATE',
+        targetType: 'maintenance',
+        targetId: id,
+        targetLabel: payload.title,
+        details: `Logged ${payload.priority} ${payload.type} ticket in ${payload.lab} (Technician: ${payload.assignedTechnician}).`,
+        lab: payload.lab,
+      })(batch);
+
       await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `maintenance/${id}`);
     }
   },
 
-  async updateMaintenanceTask(id: string, updates: Partial<MaintenanceTask>, allTasks: MaintenanceTask[]) {
+  async updateMaintenanceTask(
+    user: User,
+    id: string,
+    updates: Partial<MaintenanceTask>,
+    allTasks: MaintenanceTask[]
+  ) {
     const docId = sanitizeId(id, 'maint');
     const existingTask = allTasks.find((t) => t.id === docId);
+    const actorEmail = normalizeEmail(user.email);
 
     try {
       const batch = writeBatch(db);
       const updatePayload: Record<string, any> = {
+        lastUpdatedByEmail: actorEmail,
         updatedAt: serverTimestamp(),
       };
       if (updates.column !== undefined) updatePayload.column = updates.column;
@@ -900,6 +1402,7 @@ export const firestoreSync = {
           if (assetSnap.exists()) {
             batch.update(doc(db, 'assets', existingTask.assetId), {
               status: 'Available',
+              lastUpdatedByEmail: actorEmail,
               updatedAt: serverTimestamp(),
             });
           }
@@ -907,16 +1410,41 @@ export const firestoreSync = {
       }
 
       batch.update(doc(db, 'maintenance', docId), updatePayload);
+      buildAuditBatchOp(user, {
+        action: 'MAINT_UPDATE',
+        targetType: 'maintenance',
+        targetId: docId,
+        targetLabel: existingTask?.title || docId,
+        details: `Moved/updated ticket${updates.column ? ` to stage "${updates.column}"` : ''}.`,
+        lab: existingTask?.lab,
+      })(batch);
+
       await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `maintenance/${docId}`);
     }
   },
 
-  async deleteMaintenanceTask(id: string) {
+  async deleteMaintenanceTask(user: User, id: string) {
     const docId = sanitizeId(id, 'maint');
+    const ref = doc(db, 'maintenance', docId);
     try {
-      await deleteDoc(doc(db, 'maintenance', docId));
+      const snap = await getDoc(ref);
+      const title = snap.exists() ? snap.data().title || docId : docId;
+      const lab = snap.exists() ? snap.data().lab : undefined;
+
+      const batch = writeBatch(db);
+      batch.delete(ref);
+      buildAuditBatchOp(user, {
+        action: 'MAINT_DELETE',
+        targetType: 'maintenance',
+        targetId: docId,
+        targetLabel: title,
+        details: `Deleted maintenance ticket "${title}".`,
+        lab,
+      })(batch);
+
+      await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `maintenance/${docId}`);
     }

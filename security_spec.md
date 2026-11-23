@@ -1,27 +1,28 @@
-# ACLC-Pulse Firestore Security Specification (Phase 0 TDD)
+# ACLC-Pulse Hardened Firestore Security Specification
 
 ## 1. Data Invariants
-1. **Verified Identity Gate**: Every read/write on operational collections (`laboratories`, `assets`, `loans`, `maintenance`, `system_meta`) requires `request.auth != null && request.auth.token.email_verified == true`.
-2. **Ownership & Per-Custodian Isolation**:
-   - The bootstrapped campus administrator (`barracudaskynet@gmail.com` with `email_verified == true`) can read/write/delete campus records across browsers and devices.
-   - Each independent Lab Custodian (Email/Password verified account) can only list/get/write records where `ownerId == request.auth.uid`, with UID-scoped `laboratories/{uid}_{labCode}` and `system_meta/catalog_{uid}` document IDs preventing cross-custodian collisions.
-   - `allow list` never uses `get()` or `exists()` and strictly evaluates `isBootstrappedAdmin() || resource.data.ownerId == request.auth.uid`.
-3. **Referential & Laboratory Deletion Integrity**:
-   - Creating a `LoanRecord` requires `assetId` to reference an existing `/assets/{assetId}` document (`exists(...)`), and updating/deleting resources validates document IDs via `isValidId()`.
-   - Updating a `LoanRecord` into terminal `'Returned'` state locks it against subsequent mutations (`existing().status != 'Returned'`).
-4. **Strict Schema & Immutability**:
-   - Every `create` and `update` invokes its `isValid[Entity](incoming())` helper enforcing exact required/allowed keys (`hasAll` + `hasOnly`), string `.size()` bounds, enum constraints (including `LoanRecord.borrowerRole` in `Faculty | Instructor | Admin | Student | Staff | TESDA Scholar`), positive/non-negative numeric ranges, immutable `ownerId` and `createdAt`, and server timestamp integrity (`request.time`).
+1. **Verified Identity & Custodian Allowlist Gate**:
+   - Every read/write on operational collections (`laboratories`, `assets`, `loans`, `maintenance`, `system_meta`, `audit_logs`) requires `request.auth != null && request.auth.token.email_verified == true` AND either the Bootstrapped Head Admin (`barracudaskynet@gmail.com`) or an active entry (`active == true`) in `/authorized_custodians/{email}`.
+2. **Tiered RBAC & Admin-Only Destructive Lock**:
+   - Only `Admin` users (Bootstrapped Head Admin or active custodian with `role == 'Admin'`) can manage `/authorized_custodians`, delete any record across `laboratories`, `assets`, `loans`, `maintenance`, `system_meta`, or execute system wipe/restore operations (`Reset to 0` / `Restore Default`).
+   - Regular `Custodian` accounts can create/edit operational records, issue/return loans, and move maintenance tickets, without destructive deletion privileges.
+3. **Atomic Loan Stock Balance & Terminal State Lock**:
+   - Creating a `LoanRecord` atomically checks `get(/assets/{assetId}).data.availableQuantity >= incoming().quantity` and guarantees `getAfter(/assets/{assetId}).data.availableQuantity == get(...).data.availableQuantity - incoming().quantity`.
+   - Returning a `LoanRecord` locks it into terminal `'Returned'` state for non-admin accounts and validates stock restoration bounds (`availableQuantity <= quantity`).
+4. **Immutable Append-Only Audit Trail & Actor Provenance**:
+   - Every `/audit_logs/{logId}` entry enforces `actorUid == request.auth.uid`, `actorEmail == request.auth.token.email.lower()`, server `createdAt == request.time`, and `allow update, delete: if false;`.
+   - Operational creates/updates stamp immutable `ownerId` and `createdByEmail` plus verified `lastUpdatedByEmail`.
 
 ## 2. Adversarial "Dirty Dozen" Payloads (Expected: PERMISSION_DENIED)
-1. **Unauthenticated read/list** on `/assets` without `request.auth`.
-2. **Unverified email write** (`email_verified: false`) attempting `create` on `/assets`.
-3. **Shadow field injection** adding `isAdmin: true` to an `Asset` payload (`hasOnly` rejects).
-4. **Oversized ID poisoning** using a 500-character document ID (`isValidId` rejects).
-5. **Owner spoofing** creating an `Asset` with `ownerId: "victim-uid"` != `request.auth.uid`.
-6. **Client-spoofed timestamp** setting `createdAt` to a past date instead of `request.time`.
-7. **Mutating immutable `createdAt`** during an `Asset` update.
-8. **Mutating `ownerId`** during a `Laboratory` update.
-9. **Orphaned Loan creation** referencing a nonexistent `assetId` (`exists` check rejects).
-10. **Terminal state bypass** modifying a `LoanRecord` whose `existing().status == 'Returned'`.
-11. **Invalid enum poisoning** setting `Asset.status = "Stolen"` or `Asset.category = "Weapons"`.
-12. **PII / cross-user `list` scraping** querying `/loans` by a non-admin without `where('ownerId', '==', uid)`.
+1. **Unauthenticated read/list** on `/assets` or `/loans` without `request.auth`.
+2. **Unlisted verified Gmail** attempting `list` or `create` on `/assets` when not in `/authorized_custodians`.
+3. **Suspended custodian (`active: false`)** attempting to issue a loan or read `/loans` PII.
+4. **Non-admin Custodian** attempting `delete` on `/assets/{id}`, `/laboratories/{code}`, or `/system_meta/catalog`.
+5. **Non-admin Custodian** attempting `create` or `update` on `/authorized_custodians/{email}`.
+6. **Admin demotion/removal attack** attempting to delete or deactivate `barracudaskynet@gmail.com`.
+7. **Loan over-issuance / stock bypass** creating a `LoanRecord` without atomically decrementing `/assets/{assetId}.availableQuantity`.
+8. **Audit log tampering** attempting `update` or `delete` on `/audit_logs/{logId}`, or spoofing `actorEmail`.
+9. **Shadow field injection** adding `isAdmin: true` to an `Asset` or `Custodian` payload (`hasOnly` rejects).
+10. **Owner/creator spoofing** mutating `ownerId`, `createdByEmail`, or `createdAt` during an update.
+11. **Terminal state bypass** modifying a `LoanRecord` whose `existing().status == 'Returned'` as a non-admin custodian.
+12. **Client-spoofed timestamp** setting `createdAt` or `updatedAt` to a value other than `request.time`.

@@ -8,6 +8,7 @@ import {
   User,
   X,
   Trash2,
+  Lock,
 } from 'lucide-react';
 
 interface RepairKanbanProps {
@@ -18,6 +19,7 @@ interface RepairKanbanProps {
   onAddTask: (task: Partial<MaintenanceTask>) => Promise<void>;
   onUpdateTask: (id: string, updates: Partial<MaintenanceTask>) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
+  canDelete?: boolean;
 }
 
 export const RepairKanban: React.FC<RepairKanbanProps> = ({
@@ -28,6 +30,7 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  canDelete = true,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -224,13 +227,24 @@ export const RepairKanban: React.FC<RepairKanbanProps> = ({
                               <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
                             </button>
                           )}
-                          <button
-                            onClick={() => onDeleteTask(task.id)}
-                            title="Remove card"
-                            className="p-1 text-rose-700 hover:bg-rose-50 rounded border border-rose-200 cursor-pointer ml-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {canDelete ? (
+                            <button
+                              onClick={() => onDeleteTask(task.id)}
+                              title="Remove card"
+                              className="p-1 text-rose-700 hover:bg-rose-50 rounded border border-rose-200 cursor-pointer ml-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              title="Admin only: only Admins can delete maintenance tickets"
+                              className="p-1 text-slate-400 bg-slate-100 rounded border border-slate-200 cursor-not-allowed ml-1 opacity-70"
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

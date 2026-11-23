@@ -24,6 +24,7 @@ import {
   Info,
   Monitor,
   Copy,
+  Lock,
 } from 'lucide-react';
 
 interface InventoryTableProps {
@@ -41,6 +42,7 @@ interface InventoryTableProps {
   onQuickDispense: (asset: Asset) => void;
   onPrintTag: (asset: Asset) => void;
   onAddNewAsset: () => void;
+  canDelete?: boolean;
 }
 
 export const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -58,6 +60,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   onQuickDispense,
   onPrintTag,
   onAddNewAsset,
+  canDelete = true,
 }) => {
   const categories = ['ALL', 'Computers', 'Routers', 'Tools', 'Projectors', 'Peripherals', 'Consumables'];
   const statuses = ['ALL', 'Available', 'In Use', 'Under Maintenance', 'Damaged', 'Archived'];
@@ -475,14 +478,25 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                               <Edit2 className="w-4 h-4 stroke-[2]" />
                             </button>
 
-                            {/* Delete Asset */}
-                            <button
-                              onClick={() => onDeleteAsset(asset.id, asset.name)}
-                              title="Delete or Archive Asset"
-                              className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-md transition-colors cursor-pointer shadow-2xs"
-                            >
-                              <Trash2 className="w-4 h-4 stroke-[2]" />
-                            </button>
+                            {/* Delete Asset (Admin-Only) */}
+                            {canDelete ? (
+                              <button
+                                onClick={() => onDeleteAsset(asset.id, asset.name)}
+                                title="Delete or Archive Asset"
+                                className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-md transition-colors cursor-pointer shadow-2xs"
+                              >
+                                <Trash2 className="w-4 h-4 stroke-[2]" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                title="Admin only: only Admins can delete assets"
+                                className="p-1.5 text-slate-400 bg-slate-100 border border-slate-200 rounded-md cursor-not-allowed opacity-70"
+                              >
+                                <Lock className="w-4 h-4 stroke-[2]" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

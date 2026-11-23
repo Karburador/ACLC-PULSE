@@ -2,7 +2,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './firebase';
 import { firestoreSync } from './services/firestoreSync';
-import { LabType, Asset, LoanRecord, MaintenanceTask, Laboratory } from './types';
+import {
+  LabType,
+  Asset,
+  LoanRecord,
+  MaintenanceTask,
+  Laboratory,
+  CustodianRole,
+  AuthorizedCustodian,
+  AuditLogEntry,
+} from './types';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavigationTab, MobileBottomNav } from './components/layout/Sidebar';
@@ -17,6 +26,7 @@ import { RepairKanban } from './components/maintenance/RepairKanban';
 import { MaintenanceScheduler } from './components/maintenance/MaintenanceScheduler';
 import { ReportsView } from './components/reports/ReportsView';
 import { DeploymentGuide } from './components/deployment/DeploymentGuide';
+import { SecurityAuditView } from './components/security/SecurityAuditView';
 import { LaboratoryModal } from './components/laboratories/LaboratoryModal';
 import { ResetModal } from './components/common/ResetModal';
 import {
@@ -33,6 +43,17 @@ export default function App() {
   const [cloudReady, setCloudReady] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
 
+  // RBAC & Custodian Verification State
+  const [custodianRole, setCustodianRole] = useState<CustodianRole | null>(null);
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [unauthorizedInfo, setUnauthorizedInfo] = useState<{
+    email: string;
+    displayName?: string | null;
+    inactive?: boolean;
+  } | null>(null);
+  const [recheckingAccess, setRecheckingAccess] = useState(false);
+  const [recheckCounter, setRecheckCounter] = useState(0);
+
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [currentLab, setCurrentLab] = useState<LabType>('ALL');
 
@@ -41,6 +62,8 @@ export default function App() {
   const [allLoans, setAllLoans] = useState<LoanRecord[]>([]);
   const [allMaintenance, setAllMaintenance] = useState<MaintenanceTask[]>([]);
   const [allLaboratories, setAllLaboratories] = useState<Laboratory[]>([]);
+  const [custodians, setCustodians] = useState<AuthorizedCustodian[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -77,30 +100,59 @@ export default function App() {
   // Auth State Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setSyncError(null);
       setUser(currentUser);
       setIsEmailVerified(Boolean(currentUser?.emailVerified));
       setAuthReady(true);
       if (!currentUser || !currentUser.emailVerified) {
         setCloudReady(false);
+        setCustodianRole(null);
+        setAccessChecked(false);
+        setUnauthorizedInfo(null);
+        setRecheckingAccess(false);
         setAllAssets([]);
         setAllLoans([]);
         setAllMaintenance([]);
         setAllLaboratories([]);
+        setCustodians([]);
+        setAuditLogs([]);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Real-Time Firestore Listeners (attached only after auth is ready, user signed in & verified)
+  // Real-Time Firestore Listeners (attached only after auth, verification, AND allowlist verification)
   useEffect(() => {
     if (!authReady || !user || !isEmailVerified) return;
 
     let active = true;
     let unsubSync: (() => void) | null = null;
+    let unsubSecurity: (() => void) | null = null;
 
     async function startCloudSync() {
       try {
-        await firestoreSync.ensureInitialized(user!);
+        const access = await firestoreSync.checkCustodianAccess(user!);
+        if (!active) return;
+
+        if (!access.authorized || !access.role) {
+          setUnauthorizedInfo({
+            email: user!.email || '',
+            displayName: user!.displayName,
+            inactive: access.inactive,
+          });
+          setCustodianRole(null);
+          setAccessChecked(true);
+          setCloudReady(false);
+          setRecheckingAccess(false);
+          return;
+        }
+
+        setUnauthorizedInfo(null);
+        setCustodianRole(access.role);
+        setAccessChecked(true);
+        setRecheckingAccess(false);
+
+        await firestoreSync.ensureInitialized(user!, access.role);
         if (!active) return;
 
         unsubSync = firestoreSync.subscribeToAll(user!, {
@@ -120,9 +172,25 @@ export default function App() {
             if (active) setSyncError(err);
           },
         });
+
+        unsubSecurity = firestoreSync.subscribeToSecurityData(access.role, {
+          onCustodians: (list) => {
+            if (active) setCustodians(list);
+          },
+          onAuditLogs: (logs) => {
+            if (active) setAuditLogs(logs);
+          },
+          onError: (err) => {
+            if (active) setSyncError(err);
+          },
+        });
+
         if (active) setCloudReady(true);
       } catch (err: any) {
-        if (active) setSyncError(err);
+        if (active) {
+          setRecheckingAccess(false);
+          setSyncError(err);
+        }
       }
     }
 
@@ -131,8 +199,9 @@ export default function App() {
     return () => {
       active = false;
       if (unsubSync) unsubSync();
+      if (unsubSecurity) unsubSecurity();
     };
-  }, [authReady, user, isEmailVerified]);
+  }, [authReady, user, isEmailVerified, recheckCounter]);
 
   // Handle QR Code deep link (?asset=ACLC-COM-PC01) once cloud sync is ready
   useEffect(() => {
@@ -242,6 +311,11 @@ export default function App() {
     await signOut(auth);
   };
 
+  const handleRecheckAccess = async () => {
+    setRecheckingAccess(true);
+    setRecheckCounter((c) => c + 1);
+  };
+
   const handleManualSyncToast = () => {
     showToast('Cloud Sync is active in real time across all browsers.');
   };
@@ -305,7 +379,7 @@ export default function App() {
   const handleSaveAsset = async (assetData: Partial<Asset>) => {
     if (!user) return;
     if (assetToEdit) {
-      await firestoreSync.updateAsset(assetToEdit.id, assetData);
+      await firestoreSync.updateAsset(user, assetToEdit.id, assetData);
       showToast(`Asset "${assetData.name}" updated and synced.`);
     } else {
       await firestoreSync.createAsset(user, assetData);
@@ -316,8 +390,9 @@ export default function App() {
   };
 
   const handleDeleteAsset = async (id: string, name: string) => {
+    if (!user) return;
     try {
-      await firestoreSync.deleteAsset(id);
+      await firestoreSync.deleteAsset(user, id);
       showToast(`Asset "${name}" deleted and synced.`);
     } catch (err: any) {
       showToast(err.message || 'Delete failed', 'error');
@@ -333,7 +408,8 @@ export default function App() {
   };
 
   const handleReturnItem = async (id: string, notes?: string) => {
-    await firestoreSync.returnLoan(id, notes, allLoans, allAssets);
+    if (!user) return;
+    await firestoreSync.returnLoan(user, id, notes, allLoans, allAssets);
     showToast('Equipment returned, stock restored, and synced.');
   };
 
@@ -345,12 +421,41 @@ export default function App() {
   };
 
   const handleUpdateMaintenance = async (id: string, updates: Partial<MaintenanceTask>) => {
-    await firestoreSync.updateMaintenanceTask(id, updates, allMaintenance);
+    if (!user) return;
+    await firestoreSync.updateMaintenanceTask(user, id, updates, allMaintenance);
   };
 
   const handleDeleteMaintenance = async (id: string) => {
-    await firestoreSync.deleteMaintenanceTask(id);
+    if (!user) return;
+    await firestoreSync.deleteMaintenanceTask(user, id);
     showToast('Maintenance task removed and synced.');
+  };
+
+  // Custodian Roster Handlers (Admin-Only)
+  const handleAddCustodian = async (input: {
+    email: string;
+    displayName: string;
+    role: CustodianRole;
+    notes?: string;
+  }) => {
+    if (!user) return;
+    await firestoreSync.addAuthorizedCustodian(user, input);
+    showToast(`Authorized ${input.email} as ${input.role}.`);
+  };
+
+  const handleUpdateCustodian = async (
+    email: string,
+    updates: { displayName?: string; role?: CustodianRole; active?: boolean; notes?: string }
+  ) => {
+    if (!user) return;
+    await firestoreSync.updateAuthorizedCustodian(user, email, updates);
+    showToast(`Updated custodian access for ${email}.`);
+  };
+
+  const handleRemoveCustodian = async (email: string) => {
+    if (!user) return;
+    await firestoreSync.removeAuthorizedCustodian(user, email);
+    showToast(`Revoked custodian access for ${email}.`);
   };
 
   // Cross-module navigations
@@ -384,6 +489,36 @@ export default function App() {
           setIsEmailVerified(Boolean(auth.currentUser?.emailVerified));
           setUser(auth.currentUser);
         }}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-900">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-8 h-8 text-blue-700 animate-spin" />
+          <p className="text-sm font-bold text-slate-700">Verifying custodian clearance...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (unauthorizedInfo || !custodianRole) {
+    return (
+      <AuthScreen
+        pendingVerificationUser={null}
+        unauthorizedUser={
+          unauthorizedInfo || {
+            email: user.email || '',
+            displayName: user.displayName,
+            inactive: false,
+          }
+        }
+        recheckingAccess={recheckingAccess}
+        onRecheckAccess={handleRecheckAccess}
+        onVerificationConfirmed={() => {}}
         onSignOut={handleSignOut}
       />
     );
@@ -440,6 +575,7 @@ export default function App() {
         onOpenResetModal={() => setIsResetModalOpen(true)}
         userEmail={user.email}
         userDisplayName={user.displayName}
+        userRole={custodianRole}
         onSignOut={handleSignOut}
       />
 
@@ -459,6 +595,7 @@ export default function App() {
           onOpenLabModal={() => setIsLabModalOpen(true)}
           userEmail={user.email}
           userDisplayName={user.displayName}
+          userRole={custodianRole}
           onSignOut={handleSignOut}
         />
 
@@ -530,6 +667,7 @@ export default function App() {
                     setAssetToClone(null);
                     setIsAssetModalOpen(true);
                   }}
+                  canDelete={custodianRole === 'Admin'}
                 />
               </div>
             )}
@@ -627,6 +765,7 @@ export default function App() {
                     onAddTask={handleAddMaintenance}
                     onUpdateTask={handleUpdateMaintenance}
                     onDeleteTask={handleDeleteMaintenance}
+                    canDelete={custodianRole === 'Admin'}
                   />
                 ) : (
                   <MaintenanceScheduler
@@ -647,11 +786,24 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'security' && (
+              <SecurityAuditView
+                currentUserEmail={user.email || ''}
+                currentUserRole={custodianRole}
+                custodians={custodians}
+                auditLogs={auditLogs}
+                onAddCustodian={handleAddCustodian}
+                onUpdateCustodian={handleUpdateCustodian}
+                onRemoveCustodian={handleRemoveCustodian}
+              />
+            )}
+
             {activeTab === 'deployment' && (
               <DeploymentGuide
                 onDataReset={handleManualSyncToast}
                 onResetZero={handleResetToZero}
                 onRestoreDefaults={handleRestoreDefaults}
+                isAdmin={custodianRole === 'Admin'}
               />
             )}
           </div>
@@ -699,6 +851,7 @@ export default function App() {
         onDeleteLaboratory={handleDeleteLaboratory}
         currentLab={currentLab}
         onSelectLab={(code) => setCurrentLab(code)}
+        canDelete={custodianRole === 'Admin'}
       />
 
       {/* System Reset & Database Purge Modal */}

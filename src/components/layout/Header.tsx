@@ -1,5 +1,5 @@
 import React from 'react';
-import { LabType, Laboratory } from '../../types';
+import { CustodianRole, LabType, Laboratory } from '../../types';
 import {
   Menu,
   X,
@@ -26,6 +26,7 @@ interface HeaderProps {
   onOpenResetModal?: () => void;
   userEmail?: string | null;
   userDisplayName?: string | null;
+  userRole?: CustodianRole | null;
   onSignOut?: () => void;
 }
 
@@ -42,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenResetModal,
   userEmail,
   userDisplayName,
+  userRole,
   onSignOut,
 }) => {
   const totalUnits = laboratories.reduce((sum, l) => sum + (l.activeUnitsCount || 0), 0);
@@ -137,10 +139,10 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Zone 3: Reset Data CTA, Add Asset CTA & Account */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {onOpenResetModal && (
+        {onOpenResetModal && userRole === 'Admin' && (
           <button
             onClick={onOpenResetModal}
-            title="System Reset & Purge Data (Back to 0)"
+            title="System Reset & Purge Data (Admin Only)"
             className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-rose-800 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-300 rounded-lg transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
           >
             <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -160,10 +162,13 @@ export const Header: React.FC<HeaderProps> = ({
         {userEmail && onSignOut && (
           <button
             onClick={onSignOut}
-            title={`Signed in as ${userDisplayName || userEmail} (${userEmail}) — Click to sign out`}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-bold text-slate-700 hover:text-rose-900 bg-slate-100 hover:bg-rose-50 border border-slate-300 hover:border-rose-300 rounded-lg transition-colors cursor-pointer max-w-[170px]"
+            title={`Signed in as ${userDisplayName || userEmail} (${userRole || 'Custodian'}) — Click to sign out`}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-bold text-slate-700 hover:text-rose-900 bg-slate-100 hover:bg-rose-50 border border-slate-300 hover:border-rose-300 rounded-lg transition-colors cursor-pointer max-w-[200px]"
           >
-            <span className="truncate">{userDisplayName || userEmail.split('@')[0]}</span>
+            <span className="truncate">
+              {userDisplayName || userEmail.split('@')[0]}
+              {userRole ? ` · ${userRole}` : ''}
+            </span>
             <LogOut className="w-3.5 h-3.5 shrink-0" />
           </button>
         )}

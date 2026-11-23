@@ -1,5 +1,132 @@
 {
   "entities": {
+    "AuthorizedCustodian": {
+      "title": "AuthorizedCustodian",
+      "description": "Admin-managed allowlist and RBAC role assignment for campus Google/Gmail accounts",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Admin", "Custodian"]
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "addedByEmail": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["email", "displayName", "role", "active", "addedByEmail", "ownerId", "createdAt", "updatedAt"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Immutable append-only activity log recording custodian identity and mutation history",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "ASSET_CREATE",
+            "ASSET_UPDATE",
+            "ASSET_DELETE",
+            "LOAN_ISSUE",
+            "LOAN_RETURN",
+            "MAINT_CREATE",
+            "MAINT_UPDATE",
+            "MAINT_DELETE",
+            "LAB_CREATE",
+            "LAB_UPDATE",
+            "LAB_DELETE",
+            "CUSTODIAN_ADD",
+            "CUSTODIAN_UPDATE",
+            "CUSTODIAN_REMOVE",
+            "CATALOG_WIPE_ZERO",
+            "CATALOG_RESTORE_DEFAULT"
+          ]
+        },
+        "targetType": {
+          "type": "string",
+          "enum": ["asset", "loan", "maintenance", "laboratory", "custodian", "system"]
+        },
+        "targetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "targetLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "details": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "actorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actorEmail": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 128
+        },
+        "actorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "lab": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "action", "targetType", "targetId", "targetLabel", "details", "actorUid", "actorEmail", "actorName", "createdAt"]
+    },
     "Laboratory": {
       "title": "Laboratory",
       "description": "Academic laboratory facility room and capacity configuration",
@@ -36,6 +163,14 @@
           "minLength": 1,
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lastUpdatedByEmail": {
+          "type": "string",
+          "maxLength": 128
         },
         "createdAt": {
           "type": "string",
@@ -130,6 +265,14 @@
           "minLength": 1,
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lastUpdatedByEmail": {
+          "type": "string",
+          "maxLength": 128
         },
         "createdAt": {
           "type": "string",
@@ -235,6 +378,14 @@
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$"
         },
+        "createdByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lastUpdatedByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -320,6 +471,14 @@
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$"
         },
+        "createdByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lastUpdatedByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -349,6 +508,10 @@
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$"
         },
+        "lastUpdatedByEmail": {
+          "type": "string",
+          "maxLength": 128
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -362,25 +525,33 @@
     }
   },
   "firestore": {
+    "/authorized_custodians/{emailKey}": {
+      "schema": { "$ref": "#/entities/AuthorizedCustodian" },
+      "description": "Admin-managed allowlist and role assignment (Admin or Custodian) keyed by lowercase email"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogEntry" },
+      "description": "Immutable append-only audit trail for all campus inventory, loan, maintenance, lab, and access actions"
+    },
     "/laboratories/{labDocId}": {
       "schema": { "$ref": "#/entities/Laboratory" },
-      "description": "Configured academic laboratories isolated per custodian account (or campus admin) and synced across browsers"
+      "description": "Shared academic laboratory facilities synced across authorized custodian accounts"
     },
     "/assets/{assetId}": {
       "schema": { "$ref": "#/entities/Asset" },
-      "description": "Laboratory inventory assets synced in real time"
+      "description": "Shared laboratory inventory assets synced in real time"
     },
     "/loans/{loanId}": {
       "schema": { "$ref": "#/entities/LoanRecord" },
-      "description": "Equipment borrowing and return ledger synced across browsers"
+      "description": "Shared equipment borrowing and return ledger with atomic stock balance enforcement"
     },
     "/maintenance/{taskId}": {
       "schema": { "$ref": "#/entities/MaintenanceTask" },
-      "description": "Repair Kanban and scheduled maintenance tasks synced in real time"
+      "description": "Shared repair Kanban and scheduled maintenance tasks synced in real time"
     },
     "/system_meta/{metaId}": {
       "schema": { "$ref": "#/entities/SystemMeta" },
-      "description": "Per-custodian initialization state preventing re-seeding after Reset to 0"
+      "description": "Admin-controlled initialization state (catalog) preventing re-seeding after Reset to 0"
     }
   }
 }

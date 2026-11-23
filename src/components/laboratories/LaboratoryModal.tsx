@@ -29,6 +29,7 @@ interface LaboratoryModalProps {
   }>;
   currentLab: string;
   onSelectLab: (code: string) => void;
+  canDelete?: boolean;
 }
 
 export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
@@ -40,6 +41,7 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
   onDeleteLaboratory,
   currentLab,
   onSelectLab,
+  canDelete = true,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingCode, setEditingCode] = useState<string | null>(null);
@@ -453,6 +455,15 @@ export const LaboratoryModal: React.FC<LaboratoryModalProps> = ({
                         }
                         title={`Protected: Remove all ${assetCount} assets, ${loanCount} loans, and ${maintenanceCount} tickets first before deleting ${lab.code}`}
                         className="p-1.5 text-slate-400 bg-slate-100 border border-slate-200 rounded-lg cursor-not-allowed hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                      </button>
+                    ) : !canDelete ? (
+                      <button
+                        type="button"
+                        disabled
+                        title="Admin only: only Admins can remove laboratories"
+                        className="p-1.5 text-slate-400 bg-slate-100 border border-slate-200 rounded-lg cursor-not-allowed opacity-70"
                       >
                         <Lock className="w-3.5 h-3.5" />
                       </button>

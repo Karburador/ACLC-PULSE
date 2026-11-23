@@ -1,3 +1,49 @@
+export type CustodianRole = 'Admin' | 'Custodian';
+
+export interface AuthorizedCustodian {
+  email: string;
+  displayName: string;
+  role: CustodianRole;
+  active: boolean;
+  notes?: string;
+  addedByEmail: string;
+  ownerId: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export type AuditAction =
+  | 'ASSET_CREATE'
+  | 'ASSET_UPDATE'
+  | 'ASSET_DELETE'
+  | 'LOAN_ISSUE'
+  | 'LOAN_RETURN'
+  | 'MAINT_CREATE'
+  | 'MAINT_UPDATE'
+  | 'MAINT_DELETE'
+  | 'LAB_CREATE'
+  | 'LAB_UPDATE'
+  | 'LAB_DELETE'
+  | 'CUSTODIAN_ADD'
+  | 'CUSTODIAN_UPDATE'
+  | 'CUSTODIAN_REMOVE'
+  | 'CATALOG_WIPE_ZERO'
+  | 'CATALOG_RESTORE_DEFAULT';
+
+export interface AuditLogEntry {
+  id: string;
+  action: AuditAction;
+  targetType: 'asset' | 'loan' | 'maintenance' | 'laboratory' | 'custodian' | 'system';
+  targetId: string;
+  targetLabel: string;
+  details: string;
+  actorUid: string;
+  actorEmail: string;
+  actorName: string;
+  lab?: string;
+  createdAt?: any;
+}
+
 export interface Laboratory {
   code: string;
   name: string;
@@ -10,6 +56,8 @@ export interface Laboratory {
   activeUnitsCount?: number;
   loanCount?: number;
   maintenanceCount?: number;
+  createdByEmail?: string;
+  lastUpdatedByEmail?: string;
 }
 
 export type LabFacility = string;
@@ -53,6 +101,8 @@ export interface Asset {
   acquisitionDate?: string;
   lastMaintained?: string;
   notes?: string;
+  createdByEmail?: string;
+  lastUpdatedByEmail?: string;
 }
 
 export type LoanStatus = 'Active' | 'Returned' | 'Overdue';
@@ -76,6 +126,8 @@ export interface LoanRecord {
   purpose: string;
   issuedBy: string;
   returnedNotes?: string;
+  createdByEmail?: string;
+  lastUpdatedByEmail?: string;
 }
 
 export type KanbanColumn = 'Reported' | 'Diagnosed' | 'Under Repair' | 'Replaced/Retired';
@@ -96,6 +148,8 @@ export interface MaintenanceTask {
   diagnosis?: string;
   costEstimate?: number;
   completedDate?: string;
+  createdByEmail?: string;
+  lastUpdatedByEmail?: string;
 }
 
 export interface LabStorageLayout {

@@ -15,12 +15,14 @@ interface DeploymentGuideProps {
   onDataReset: () => void;
   onResetZero?: () => Promise<void>;
   onRestoreDefaults?: () => Promise<void>;
+  isAdmin?: boolean;
 }
 
 export const DeploymentGuide: React.FC<DeploymentGuideProps> = ({
   onDataReset,
   onResetZero,
   onRestoreDefaults,
+  isAdmin = true,
 }) => {
   const [healthData, setHealthData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -109,24 +111,32 @@ CLIENT_URL="https://aclc-pulse.vercel.app"`;
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleWipeZero}
-            disabled={resetting}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-700 hover:text-white bg-red-50 hover:bg-red-600 border border-red-300 hover:border-red-600 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Delete all data and reset to 0"
-          >
-            <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>{resetting ? 'Processing...' : 'Reset to 0 (Wipe)'}</span>
-          </button>
-          <button
-            onClick={handleResetCatalog}
-            disabled={resetting}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Restore ACLC default 160 units"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-blue-700 stroke-[2.5]" />
-            <span>{resetting ? 'Processing...' : 'Restore Demo (160 Units)'}</span>
-          </button>
+          {isAdmin ? (
+            <>
+              <button
+                onClick={handleWipeZero}
+                disabled={resetting}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-700 hover:text-white bg-red-50 hover:bg-red-600 border border-red-300 hover:border-red-600 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                title="Delete all data and reset to 0"
+              >
+                <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>{resetting ? 'Processing...' : 'Reset to 0 (Wipe)'}</span>
+              </button>
+              <button
+                onClick={handleResetCatalog}
+                disabled={resetting}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                title="Restore ACLC default 160 units"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-blue-700 stroke-[2.5]" />
+                <span>{resetting ? 'Processing...' : 'Restore Demo (160 Units)'}</span>
+              </button>
+            </>
+          ) : (
+            <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg">
+              Database Wipe &amp; Restore: Admin Only
+            </span>
+          )}
         </div>
       </div>
 

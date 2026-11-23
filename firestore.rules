@@ -11,6 +11,10 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidEmailId(id) {
+      return id is string && id.size() >= 5 && id.size() <= 128 && id.matches('^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$');
+    }
+
     function isValidLabCode(code) {
       return code is string && code.size() >= 1 && code.size() <= 32 && code.matches('^[A-Z0-9_\\-]+$');
     }
@@ -28,26 +32,90 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email is string;
     }
 
-    // Bootstrapped Campus Administrator (zero-read token claim check)
+    // Bootstrapped Head Administrator (zero-read token claim check)
     function isBootstrappedAdmin() {
-      return isVerified() && request.auth.token.email == 'barracudaskynet@gmail.com';
+      return isVerified() && request.auth.token.email.lower() == 'barracudaskynet@gmail.com';
     }
 
-    function isOwnerOrAdmin() {
-      return isBootstrappedAdmin() || existing().ownerId == request.auth.uid;
+    function custodianDocPath() {
+      return /databases/$(database)/documents/authorized_custodians/$(request.auth.token.email.lower());
     }
 
-    function isDocOwnerOrAdmin() {
-      return isBootstrappedAdmin() || resource.data.ownerId == request.auth.uid;
+    // Dynamic Admin Check: Bootstrapped Head Admin OR active custodian with role == 'Admin'
+    function isAdmin() {
+      return isBootstrappedAdmin()
+        || (
+          isVerified()
+          && exists(custodianDocPath())
+          && get(custodianDocPath()).data.active == true
+          && get(custodianDocPath()).data.role == 'Admin'
+        );
+    }
+
+    // Dynamic Authorized Custodian Check: Bootstrapped Head Admin OR active entry in authorized_custodians
+    function isAuthorizedCustodian() {
+      return isBootstrappedAdmin()
+        || (
+          isVerified()
+          && exists(custodianDocPath())
+          && get(custodianDocPath()).data.active == true
+        );
     }
 
     // Entity Validation Blueprints
+    function isValidAuthorizedCustodian(data) {
+      return data.keys().hasAll(['email', 'displayName', 'role', 'active', 'addedByEmail', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['email', 'displayName', 'role', 'active', 'notes', 'addedByEmail', 'ownerId', 'createdAt', 'updatedAt'])
+        && isValidEmailId(data.email)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role in ['Admin', 'Custodian']
+        && data.active is bool
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+        && isValidEmailId(data.addedByEmail)
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'action', 'targetType', 'targetId', 'targetLabel', 'details', 'actorUid', 'actorEmail', 'actorName', 'createdAt'])
+        && data.keys().hasOnly(['id', 'action', 'targetType', 'targetId', 'targetLabel', 'details', 'actorUid', 'actorEmail', 'actorName', 'lab', 'createdAt'])
+        && isValidId(data.id)
+        && data.action in [
+          'ASSET_CREATE',
+          'ASSET_UPDATE',
+          'ASSET_DELETE',
+          'LOAN_ISSUE',
+          'LOAN_RETURN',
+          'MAINT_CREATE',
+          'MAINT_UPDATE',
+          'MAINT_DELETE',
+          'LAB_CREATE',
+          'LAB_UPDATE',
+          'LAB_DELETE',
+          'CUSTODIAN_ADD',
+          'CUSTODIAN_UPDATE',
+          'CUSTODIAN_REMOVE',
+          'CATALOG_WIPE_ZERO',
+          'CATALOG_RESTORE_DEFAULT'
+        ]
+        && data.targetType in ['asset', 'loan', 'maintenance', 'laboratory', 'custodian', 'system']
+        && data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128
+        && data.targetLabel is string && data.targetLabel.size() >= 1 && data.targetLabel.size() <= 200
+        && data.details is string && data.details.size() >= 1 && data.details.size() <= 500
+        && isValidId(data.actorUid)
+        && isValidEmailId(data.actorEmail)
+        && data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 120
+        && (!('lab' in data) || (data.lab is string && data.lab.size() >= 1 && data.lab.size() <= 32))
+        && data.createdAt is timestamp;
+    }
+
     function isValidLaboratory(data) {
       return data.keys().hasAll(['code', 'name', 'roomNumber', 'capacity', 'isCustom', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['code', 'name', 'roomNumber', 'capacity', 'description', 'isCustom', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['code', 'name', 'roomNumber', 'capacity', 'description', 'isCustom', 'ownerId', 'createdByEmail', 'lastUpdatedByEmail', 'createdAt', 'updatedAt'])
         && isValidLabCode(data.code)
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
         && data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 60
@@ -55,6 +123,8 @@ service cloud.firestore {
         && (!('description' in data) || (data.description is string && data.description.size() <= 500))
         && data.isCustom is bool
         && isValidId(data.ownerId)
+        && (!('createdByEmail' in data) || isValidEmailId(data.createdByEmail))
+        && (!('lastUpdatedByEmail' in data) || isValidEmailId(data.lastUpdatedByEmail))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
@@ -78,7 +148,7 @@ service cloud.firestore {
 
     function isValidAsset(data) {
       return data.keys().hasAll(['id', 'assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'storageLocation', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'monitorInfo', 'acquisitionDate', 'lastMaintained', 'notes', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'monitorInfo', 'acquisitionDate', 'lastMaintained', 'notes', 'ownerId', 'createdByEmail', 'lastUpdatedByEmail', 'createdAt', 'updatedAt'])
         && isValidId(data.id)
         && data.assetTag is string && data.assetTag.size() >= 1 && data.assetTag.size() <= 64
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 160
@@ -97,13 +167,15 @@ service cloud.firestore {
         && (!('lastMaintained' in data) || (data.lastMaintained is string && data.lastMaintained.size() <= 40))
         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 600))
         && isValidId(data.ownerId)
+        && (!('createdByEmail' in data) || isValidEmailId(data.createdByEmail))
+        && (!('lastUpdatedByEmail' in data) || isValidEmailId(data.lastUpdatedByEmail))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
 
     function isValidLoan(data) {
       return data.keys().hasAll(['id', 'borrowerName', 'borrowerIdNumber', 'borrowerRole', 'departmentSection', 'assetId', 'assetTag', 'assetName', 'lab', 'quantity', 'dateBorrowed', 'expectedReturnDate', 'status', 'purpose', 'issuedBy', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'borrowerName', 'borrowerIdNumber', 'borrowerRole', 'departmentSection', 'assetId', 'assetTag', 'assetName', 'lab', 'quantity', 'dateBorrowed', 'expectedReturnDate', 'dateReturned', 'status', 'purpose', 'issuedBy', 'returnedNotes', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'borrowerName', 'borrowerIdNumber', 'borrowerRole', 'departmentSection', 'assetId', 'assetTag', 'assetName', 'lab', 'quantity', 'dateBorrowed', 'expectedReturnDate', 'dateReturned', 'status', 'purpose', 'issuedBy', 'returnedNotes', 'ownerId', 'createdByEmail', 'lastUpdatedByEmail', 'createdAt', 'updatedAt'])
         && isValidId(data.id)
         && data.borrowerName is string && data.borrowerName.size() >= 1 && data.borrowerName.size() <= 120
         && data.borrowerIdNumber is string && data.borrowerIdNumber.size() >= 1 && data.borrowerIdNumber.size() <= 64
@@ -122,13 +194,15 @@ service cloud.firestore {
         && data.issuedBy is string && data.issuedBy.size() >= 1 && data.issuedBy.size() <= 120
         && (!('returnedNotes' in data) || (data.returnedNotes is string && data.returnedNotes.size() <= 400))
         && isValidId(data.ownerId)
+        && (!('createdByEmail' in data) || isValidEmailId(data.createdByEmail))
+        && (!('lastUpdatedByEmail' in data) || isValidEmailId(data.lastUpdatedByEmail))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
 
     function isValidMaintenance(data) {
       return data.keys().hasAll(['id', 'title', 'lab', 'type', 'column', 'priority', 'scheduledDate', 'assignedTechnician', 'description', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'title', 'assetId', 'assetTag', 'lab', 'type', 'column', 'priority', 'scheduledDate', 'assignedTechnician', 'description', 'diagnosis', 'costEstimate', 'completedDate', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'title', 'assetId', 'assetTag', 'lab', 'type', 'column', 'priority', 'scheduledDate', 'assignedTechnician', 'description', 'diagnosis', 'costEstimate', 'completedDate', 'ownerId', 'createdByEmail', 'lastUpdatedByEmail', 'createdAt', 'updatedAt'])
         && isValidId(data.id)
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
         && (!('assetId' in data) || (data.assetId is string && data.assetId.size() <= 128))
@@ -144,16 +218,19 @@ service cloud.firestore {
         && (!('costEstimate' in data) || (data.costEstimate is number && data.costEstimate >= 0 && data.costEstimate <= 10000000))
         && (!('completedDate' in data) || (data.completedDate is string && data.completedDate.size() <= 40))
         && isValidId(data.ownerId)
+        && (!('createdByEmail' in data) || isValidEmailId(data.createdByEmail))
+        && (!('lastUpdatedByEmail' in data) || isValidEmailId(data.lastUpdatedByEmail))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
 
     function isValidSystemMeta(data) {
       return data.keys().hasAll(['initialized', 'mode', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['initialized', 'mode', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['initialized', 'mode', 'ownerId', 'lastUpdatedByEmail', 'createdAt', 'updatedAt'])
         && data.initialized is bool
         && data.mode in ['default', 'zero']
         && isValidId(data.ownerId)
+        && (!('lastUpdatedByEmail' in data) || isValidEmailId(data.lastUpdatedByEmail))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
@@ -163,163 +240,231 @@ service cloud.firestore {
       allow get: if isValidId(docId) && docId == 'connection';
     }
 
-    // Laboratories Collection (per-custodian UID-prefixed doc ID or legacy admin labCode)
+    // Authorized Custodian Roster (Admin-Managed Allowlist & RBAC)
+    match /authorized_custodians/{emailKey} {
+      allow get: if isValidEmailId(emailKey)
+        && isVerified()
+        && (isAdmin() || request.auth.token.email.lower() == emailKey);
+      allow list: if isAdmin();
+
+      allow create: if isValidEmailId(emailKey)
+        && isAdmin()
+        && isValidAuthorizedCustodian(incoming())
+        && incoming().email == emailKey
+        && incoming().addedByEmail == request.auth.token.email.lower()
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidEmailId(emailKey)
+        && isAdmin()
+        && isValidAuthorizedCustodian(incoming())
+        && (emailKey != 'barracudaskynet@gmail.com' || (incoming().role == 'Admin' && incoming().active == true))
+        && incoming().email == existing().email
+        && incoming().addedByEmail == existing().addedByEmail
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'active', 'notes', 'updatedAt']);
+
+      allow delete: if isValidEmailId(emailKey)
+        && isAdmin()
+        && emailKey != 'barracudaskynet@gmail.com';
+    }
+
+    // Immutable Append-Only Audit Log (Zero Update/Delete)
+    match /audit_logs/{logId} {
+      allow get: if isValidId(logId) && isAuthorizedCustodian();
+      allow list: if isAuthorizedCustodian();
+
+      allow create: if isValidId(logId)
+        && isAuthorizedCustodian()
+        && isValidAuditLog(incoming())
+        && incoming().id == logId
+        && incoming().actorUid == request.auth.uid
+        && incoming().actorEmail == request.auth.token.email.lower()
+        && incoming().createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    // Shared Campus Laboratories Collection
     match /laboratories/{labDocId} {
-      allow get: if isValidId(labDocId) && isVerified() && isOwnerOrAdmin();
-      allow list: if isVerified() && isDocOwnerOrAdmin();
+      allow get: if isValidId(labDocId) && isAuthorizedCustodian();
+      allow list: if isAuthorizedCustodian();
 
       allow create: if isValidId(labDocId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidLaboratory(incoming())
-        && (
-          labDocId == request.auth.uid + '_' + incoming().code
-          || (isBootstrappedAdmin() && labDocId == incoming().code)
-        )
+        && labDocId == incoming().code
         && incoming().ownerId == request.auth.uid
+        && (!('createdByEmail' in incoming()) || incoming().createdByEmail == request.auth.token.email.lower())
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
       allow update: if isValidId(labDocId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidLaboratory(incoming())
-        && isOwnerOrAdmin()
         && incoming().code == existing().code
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
+        && (!('createdByEmail' in existing()) || incoming().createdByEmail == existing().createdByEmail)
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'roomNumber', 'capacity', 'description', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'roomNumber', 'capacity', 'description', 'lastUpdatedByEmail', 'updatedAt']);
 
       allow delete: if isValidId(labDocId)
-        && isVerified()
-        && isOwnerOrAdmin();
+        && isAdmin();
     }
 
-    // Assets Collection
+    // Shared Campus Assets Collection
     match /assets/{assetId} {
-      allow get: if isValidId(assetId) && isVerified() && isOwnerOrAdmin();
-      allow list: if isVerified() && isDocOwnerOrAdmin();
+      allow get: if isValidId(assetId) && isAuthorizedCustodian();
+      allow list: if isAuthorizedCustodian();
 
       allow create: if isValidId(assetId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidAsset(incoming())
         && incoming().id == assetId
         && incoming().ownerId == request.auth.uid
+        && (!('createdByEmail' in incoming()) || incoming().createdByEmail == request.auth.token.email.lower())
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
       allow update: if isValidId(assetId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidAsset(incoming())
-        && isOwnerOrAdmin()
         && incoming().id == existing().id
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
+        && (!('createdByEmail' in existing()) || incoming().createdByEmail == existing().createdByEmail)
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().updatedAt == request.time
         && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'monitorInfo', 'acquisitionDate', 'lastMaintained', 'notes', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['assetTag', 'name', 'category', 'lab', 'status', 'quantity', 'availableQuantity', 'unit', 'serialNumber', 'brandModel', 'specs', 'storageLocation', 'monitorInfo', 'acquisitionDate', 'lastMaintained', 'notes', 'lastUpdatedByEmail', 'updatedAt'])
           ||
-          incoming().diff(existing()).affectedKeys().hasOnly(['availableQuantity', 'status', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['availableQuantity', 'status', 'lastUpdatedByEmail', 'updatedAt'])
         );
 
       allow delete: if isValidId(assetId)
-        && isVerified()
-        && isOwnerOrAdmin();
+        && isAdmin();
     }
 
-    // Loans Collection
+    // Shared Campus Loans Collection (Atomic Stock Decrement & Restoration Guard)
     match /loans/{loanId} {
-      allow get: if isValidId(loanId) && isVerified() && isOwnerOrAdmin();
-      allow list: if isVerified() && isDocOwnerOrAdmin();
+      allow get: if isValidId(loanId) && isAuthorizedCustodian();
+      allow list: if isAuthorizedCustodian();
 
       allow create: if isValidId(loanId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidLoan(incoming())
         && incoming().id == loanId
         && incoming().ownerId == request.auth.uid
+        && (!('createdByEmail' in incoming()) || incoming().createdByEmail == request.auth.token.email.lower())
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
-        && existsAfter(/databases/$(database)/documents/assets/$(incoming().assetId));
+        && (
+          (
+            exists(/databases/$(database)/documents/assets/$(incoming().assetId))
+            && get(/databases/$(database)/documents/assets/$(incoming().assetId)).data.availableQuantity >= incoming().quantity
+            && getAfter(/databases/$(database)/documents/assets/$(incoming().assetId)).data.availableQuantity == get(/databases/$(database)/documents/assets/$(incoming().assetId)).data.availableQuantity - incoming().quantity
+          )
+          ||
+          (
+            isAdmin()
+            && !exists(/databases/$(database)/documents/assets/$(incoming().assetId))
+            && existsAfter(/databases/$(database)/documents/assets/$(incoming().assetId))
+          )
+        );
 
       allow update: if isValidId(loanId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidLoan(incoming())
-        && isOwnerOrAdmin()
-        && existing().status != 'Returned'
+        && (isAdmin() || existing().status != 'Returned')
         && incoming().id == existing().id
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
+        && (!('createdByEmail' in existing()) || incoming().createdByEmail == existing().createdByEmail)
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().updatedAt == request.time
         && (
-          (incoming().status == 'Returned' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'dateReturned', 'returnedNotes', 'updatedAt']))
+          (
+            incoming().status == 'Returned'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'dateReturned', 'returnedNotes', 'lastUpdatedByEmail', 'updatedAt'])
+            && (
+              !exists(/databases/$(database)/documents/assets/$(existing().assetId))
+              || (
+                getAfter(/databases/$(database)/documents/assets/$(existing().assetId)).data.availableQuantity >= get(/databases/$(database)/documents/assets/$(existing().assetId)).data.availableQuantity
+                && getAfter(/databases/$(database)/documents/assets/$(existing().assetId)).data.availableQuantity <= get(/databases/$(database)/documents/assets/$(existing().assetId)).data.quantity
+              )
+            )
+          )
           ||
-          (incoming().status == 'Overdue' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+          (incoming().status == 'Overdue' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'lastUpdatedByEmail', 'updatedAt']))
         );
 
       allow delete: if isValidId(loanId)
-        && isVerified()
-        && isOwnerOrAdmin();
+        && isAdmin();
     }
 
-    // Maintenance Collection
+    // Shared Campus Maintenance Collection
     match /maintenance/{taskId} {
-      allow get: if isValidId(taskId) && isVerified() && isOwnerOrAdmin();
-      allow list: if isVerified() && isDocOwnerOrAdmin();
+      allow get: if isValidId(taskId) && isAuthorizedCustodian();
+      allow list: if isAuthorizedCustodian();
 
       allow create: if isValidId(taskId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidMaintenance(incoming())
         && incoming().id == taskId
         && incoming().ownerId == request.auth.uid
+        && (!('createdByEmail' in incoming()) || incoming().createdByEmail == request.auth.token.email.lower())
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
       allow update: if isValidId(taskId)
-        && isVerified()
+        && isAuthorizedCustodian()
         && isValidMaintenance(incoming())
-        && isOwnerOrAdmin()
         && incoming().id == existing().id
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
+        && (!('createdByEmail' in existing()) || incoming().createdByEmail == existing().createdByEmail)
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['column', 'priority', 'diagnosis', 'costEstimate', 'completedDate', 'assignedTechnician', 'description', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['column', 'priority', 'diagnosis', 'costEstimate', 'completedDate', 'assignedTechnician', 'description', 'lastUpdatedByEmail', 'updatedAt']);
 
       allow delete: if isValidId(taskId)
-        && isVerified()
-        && isOwnerOrAdmin();
+        && isAdmin();
     }
 
-    // System Meta Collection (tracks per-custodian catalog initialization & Reset-to-0 state)
+    // Shared System Meta Collection (Admin-Controlled Wipe/Restore Markers)
     match /system_meta/{metaId} {
-      allow get: if isValidId(metaId) && isVerified() && isOwnerOrAdmin();
-      allow list: if isVerified() && isDocOwnerOrAdmin();
+      allow get: if isValidId(metaId) && isAuthorizedCustodian() && metaId == 'catalog';
+      allow list: if isAuthorizedCustodian();
 
       allow create: if isValidId(metaId)
-        && isVerified()
-        && (
-          metaId == 'catalog_' + request.auth.uid
-          || (isBootstrappedAdmin() && metaId == 'catalog')
-        )
+        && isAdmin()
+        && metaId == 'catalog'
         && isValidSystemMeta(incoming())
         && incoming().ownerId == request.auth.uid
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
       allow update: if isValidId(metaId)
-        && isVerified()
-        && (
-          metaId == 'catalog_' + request.auth.uid
-          || (isBootstrappedAdmin() && metaId == 'catalog')
-        )
+        && isAdmin()
+        && metaId == 'catalog'
         && isValidSystemMeta(incoming())
-        && isOwnerOrAdmin()
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
+        && (!('lastUpdatedByEmail' in incoming()) || incoming().lastUpdatedByEmail == request.auth.token.email.lower())
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['initialized', 'mode', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['initialized', 'mode', 'lastUpdatedByEmail', 'updatedAt']);
 
       allow delete: if isValidId(metaId)
-        && isVerified()
-        && isOwnerOrAdmin();
+        && isAdmin();
     }
   }
 }

@@ -12,10 +12,11 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  LogOut
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
-import { Laboratory } from '../../types';
+import { CustodianRole, Laboratory } from '../../types';
 
 export type NavigationTab =
   | 'dashboard'
@@ -24,6 +25,7 @@ export type NavigationTab =
   | 'storage'
   | 'maintenance'
   | 'reports'
+  | 'security'
   | 'deployment';
 
 interface SidebarProps {
@@ -37,6 +39,7 @@ interface SidebarProps {
   onOpenLabModal?: () => void;
   userEmail?: string | null;
   userDisplayName?: string | null;
+  userRole?: CustodianRole | null;
   onSignOut?: () => void;
 }
 
@@ -51,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenLabModal,
   userEmail,
   userDisplayName,
+  userRole,
   onSignOut,
 }) => {
   const navItems: { id: NavigationTab; label: string; icon: React.ElementType; badge?: number; phaseTag: string }[] = [
@@ -60,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'storage', label: 'Storage & Tags', icon: QrCode, phaseTag: 'Phase 3' },
     { id: 'maintenance', label: 'Maintenance Kanban', icon: Wrench, badge: maintenanceCount, phaseTag: 'Phase 4' },
     { id: 'reports', label: 'Reports & Export', icon: FileSpreadsheet, phaseTag: 'Phase 5' },
+    { id: 'security', label: 'Security & Audit', icon: ShieldCheck, phaseTag: 'RBAC' },
     { id: 'deployment', label: 'Vercel + Render + Atlas', icon: Server, phaseTag: 'DevOps' },
   ];
 
@@ -189,6 +194,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="min-w-0">
             <div className="text-[11px] font-bold text-slate-900 truncate">
               {userDisplayName || userEmail.split('@')[0]}
+              {userRole && (
+                <span className="text-blue-700 font-semibold ml-1">· {userRole}</span>
+              )}
             </div>
             <div className="text-[10px] text-slate-500 truncate">{userEmail}</div>
           </div>
@@ -424,7 +432,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       <button
         onClick={onOpenMore}
         className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-lg transition-colors cursor-pointer relative min-h-[44px] ${
-          activeTab === 'maintenance' || activeTab === 'reports' || activeTab === 'deployment'
+          activeTab === 'maintenance' || activeTab === 'reports' || activeTab === 'security' || activeTab === 'deployment'
             ? 'text-blue-700 font-extrabold'
             : 'text-slate-600 hover:text-slate-900 font-semibold'
         }`}
